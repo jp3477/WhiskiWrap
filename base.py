@@ -212,13 +212,15 @@ def pipeline_trace(input_vfile, h5_filename,
     WhiskiWrap.utils.probe_needed_commands()
     
     # Figure out where to store temporary data
-    input_vfile = os.path.abspath(input_vfile)
+    #input_vfile = os.path.abspath(input_vfile)
+    input_vfile = os.path.expanduser(input_vfile)
     input_dir = os.path.split(input_vfile)[0]    
 
     # Setup the result file
     setup_hdf5(h5_filename, expectedrows)
 
     # Figure out how many frames and epochs
+    print input_vfile
     duration = my.video.get_video_duration2(input_vfile)
     frame_rate = my.video.get_video_params(input_vfile)[2]
     total_frames = int(np.rint(duration * frame_rate))
