@@ -13,6 +13,7 @@ try:
     import tifffile
 except ImportError:
     pass
+import tifffile
 import os
 import numpy as np
 import subprocess
