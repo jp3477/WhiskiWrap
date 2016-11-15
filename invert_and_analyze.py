@@ -10,7 +10,13 @@ def invert_video(infile, outfile):
     ff = ffmpy.FFmpeg(
             global_options='-y',
             inputs={infile : None},
-            outputs={outfile : ['-vf', 'lutrgb=r=negval:g=negval:b=negval']}
+            outputs={outfile : ['-vf', 
+                'lutrgb=r=negval:g=negval:b=negval, lutyuv=y=gammaval(0.8), unsharp',
+                '-ss',
+                '00:00:00',
+                '-t',
+                '00:00:20' 
+                ]}
         )
 
     ff.run()
@@ -18,15 +24,18 @@ def invert_video(infile, outfile):
 def invert_and_trace(video, outdir):
     """ Inverts a video's colors and then runs a trace """
     video_name, ext = path.splitext(video)
-    inverted_video_path = path.join(outdir, video_name + "_inverted" + ".mp4")
+    inverted_video_path = path.join(outdir, path.basename(video_name) + "_inverted" + ".mp4")
     invert_video(video, inverted_video_path)
 
     #Trace
     WhiskiWrap.pipeline_trace(
-        video, 
-        path.join(outdir,'trace.hdf5'), 
+        inverted_video_path, 
+        'trace.hdf5',
         n_trace_processes=4
     )
+
+def classify():
+    pass
 
 
 

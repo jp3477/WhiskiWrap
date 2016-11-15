@@ -110,6 +110,74 @@ def trace_chunk(video_filename, delete_when_done=False):
     return {'video_filename': video_filename, 'stdout': stdout, 'stderr': stderr}
 
 
+def measure_chunk(video_filename, face='left'):
+    whisker_filename = WhiskiWrap.utils.FileNamer.from_video(video_filename).whiskers
+
+    print "Measuring", whisker_filename
+    orig_dir = os.getcwd()
+    run_dir, raw_filename = os.path.split(os.path.abspath(video_filename))
+
+    measurements_filename = WhiskiWrap.utils.FileNamer.from_video(video_filename).measurements
+    command = ['measure', '--face',face, whisker_filename, measurements_filename ]
+
+    os.chdir(run_dir)
+
+    try:
+        pipe = subprocess.Popen(command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            )
+        stdout, stderr = pipe.communicate()  
+    except:
+        raise
+    finally:
+        os.chdir(orig_dir)
+    print "Done measuring", whisker_filename
+
+    if not os.path.exists(measurements_filename):
+        print raw_filename
+        raise IOError("measuring seems to have failed")
+
+    return {'whisker_filename': whisker_filename, 'stdout': stdout, 'stderr': stderr}
+
+def classify_chunk(video_filename, side='left', px2mm=0.04, n=3):
+    measurements_filename = WhiskiWrap.utils.FileNamer.from_video(video_filename).measurements
+
+    print "Classifying", measurements_filename
+    orig_dir = os.getcwd()
+    run_dir, raw_filename = os.path.split(os.path.abspath(video_filename))
+
+    command = [
+        'classify', 
+        measurements_filename, 
+        measurements_filename,
+        side,
+        '--px2mm',
+        str(px2mm),
+        '-n',
+        str(n)
+    ]
+
+    os.chdir(run_dir)
+
+    try:
+        pipe = subprocess.Popen(command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            )
+        stdout, stderr = pipe.communicate()  
+    except:
+        raise
+    finally:
+        os.chdir(orig_dir)
+    print "Done classifying", measurements_filename
+
+    if not os.path.exists(measurements_filename):
+        print raw_whisker_filename
+        raise IOError("classifying seems to have failed")
+
+    return {'measurements_filename': measurements_filename, 'stdout': stdout, 'stderr': stderr}
+
 def sham_trace_chunk(video_filename):
     print "sham tracing", video_filename
     time.sleep(2)
@@ -270,7 +338,16 @@ def pipeline_trace(input_vfile, h5_filename,
         trace_res = pool.map(trace_chunk, 
             [os.path.join(input_dir, chunk_name)
                 for chunk_name in chunk_names])
+        measurement_res = pool.map(measure_chunk,
+            [os.path.join(input_dir, chunk_name)
+                for chunk_name in chunk_names])
+
+        classification_res = pool.map(classify_chunk,
+            [os.path.join(input_dir, chunk_name)
+                for chunk_name in chunk_names])
         pool.close()
+
+
 
         # stitch
         print "Stitching"
@@ -278,6 +355,7 @@ def pipeline_trace(input_vfile, h5_filename,
             # Append each chunk to the hdf5 file
             fn = WhiskiWrap.utils.FileNamer.from_tiff_stack(
                 os.path.join(input_dir, chunk_name))
+
             append_whiskers_to_hdf5(
                 whisk_filename=fn.whiskers,
                 h5_filename=h5_filename, 

@@ -41,6 +41,11 @@ class FileNamer(object):
     def whiskers(self):
         """Return the name for the whiskers file"""
         return self.basename + '.whiskers'
+
+    @property
+    def measurements(self):
+        """Return the name for the measurements file"""
+        return self.basename + '.measurements'
     
     @classmethod
     def from_video(self, video_name):
