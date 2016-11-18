@@ -343,9 +343,9 @@ def pipeline_trace(input_vfile, h5_filename,
         # trace each
         print "Tracing"
         pool = multiprocessing.Pool(n_trace_processes)        
-        # trace_res = pool.map(trace_chunk, 
-        #     [os.path.join(input_dir, chunk_name)
-        #         for chunk_name in chunk_names])
+        trace_res = pool.map(trace_chunk, 
+            [os.path.join(input_dir, chunk_name)
+                for chunk_name in chunk_names])
         # measurement_res = pool.map(measure_chunk,
         #     [os.path.join(input_dir, chunk_name)
         #         for chunk_name in chunk_names])
@@ -353,9 +353,9 @@ def pipeline_trace(input_vfile, h5_filename,
         # classification_res = pool.map(classify_chunk,
         #     [os.path.join(input_dir, chunk_name)
         #         for chunk_name in chunk_names])
-        pool.map(analyze_chunk,
-            [os.path.join(input_dir, chunk_name)
-                for chunk_name in chunk_names])
+        # pool.map(analyze_chunk,
+        #     [os.path.join(input_dir, chunk_name)
+        #         for chunk_name in chunk_names])
         pool.close()
 
 
