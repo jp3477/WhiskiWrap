@@ -68,6 +68,8 @@ class WhiskerSeg(tables.IsDescription):
 def write_chunk(chunk, chunkname, directory='.'):
     tifffile.imsave(os.path.join(directory, chunkname), chunk, compress=0)
 
+
+
 def trace_chunk(video_filename, delete_when_done=False):
     """Run trace on an input file
     
@@ -140,7 +142,7 @@ def measure_chunk(video_filename, face='left'):
 
     return {'whisker_filename': whisker_filename, 'stdout': stdout, 'stderr': stderr}
 
-def classify_chunk(video_filename, side='left', px2mm=0.04, n=3):
+def classify_chunk(video_filename, face='left', px2mm=0.04, n=3):
     measurements_filename = WhiskiWrap.utils.FileNamer.from_video(video_filename).measurements
 
     print "Classifying", measurements_filename
@@ -151,11 +153,12 @@ def classify_chunk(video_filename, side='left', px2mm=0.04, n=3):
         'classify', 
         measurements_filename, 
         measurements_filename,
-        side,
+        face,
         '--px2mm',
         str(px2mm),
         '-n',
-        str(n)
+        str(n),
+        '--limit1.0:23.0', '--follicle', '200'
     ]
 
     os.chdir(run_dir)
@@ -177,6 +180,11 @@ def classify_chunk(video_filename, side='left', px2mm=0.04, n=3):
         raise IOError("classifying seems to have failed")
 
     return {'measurements_filename': measurements_filename, 'stdout': stdout, 'stderr': stderr}
+
+def analyze_chunk(video_filename, face='left', px2mm='0.22', n=-1):
+    trace_chunk(video_filename)
+    measure_chunk(video_filename, face=face)
+    classify_chunk(video_filename, face=face, px2mm=px2mm, n=3      )
 
 def sham_trace_chunk(video_filename):
     print "sham tracing", video_filename
@@ -335,14 +343,17 @@ def pipeline_trace(input_vfile, h5_filename,
         # trace each
         print "Tracing"
         pool = multiprocessing.Pool(n_trace_processes)        
-        trace_res = pool.map(trace_chunk, 
-            [os.path.join(input_dir, chunk_name)
-                for chunk_name in chunk_names])
-        measurement_res = pool.map(measure_chunk,
-            [os.path.join(input_dir, chunk_name)
-                for chunk_name in chunk_names])
+        # trace_res = pool.map(trace_chunk, 
+        #     [os.path.join(input_dir, chunk_name)
+        #         for chunk_name in chunk_names])
+        # measurement_res = pool.map(measure_chunk,
+        #     [os.path.join(input_dir, chunk_name)
+        #         for chunk_name in chunk_names])
 
-        classification_res = pool.map(classify_chunk,
+        # classification_res = pool.map(classify_chunk,
+        #     [os.path.join(input_dir, chunk_name)
+        #         for chunk_name in chunk_names])
+        pool.map(analyze_chunk,
             [os.path.join(input_dir, chunk_name)
                 for chunk_name in chunk_names])
         pool.close()

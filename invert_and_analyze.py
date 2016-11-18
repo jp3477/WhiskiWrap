@@ -7,11 +7,12 @@ def invert_video(infile, outfile):
     """ This function inverts the colors in video designated by infile
         and writes the results to outfile
     """
+    # eq=1:0:3:1:1:1:1:1'
     ff = ffmpy.FFmpeg(
             global_options='-y',
             inputs={infile : None},
             outputs={outfile : ['-vf', 
-                'lutrgb=r=negval:g=negval:b=negval, lutyuv=y=gammaval(0.8), unsharp',
+                'lutrgb=r=negval:g=negval:b=negval' ,
                 '-ss',
                 '00:00:00',
                 '-t',
