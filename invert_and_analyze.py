@@ -1,17 +1,32 @@
+import matplotlib
+matplotlib.use('Qt4Agg')
+
+
 import ffmpy
 import sys
 import WhiskiWrap
 from os import path
 import os
+import numpy as np
+import numpy.linalg as la
 from matplotlib.widgets import RectangleSelector
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+
 import tables
 import pandas
+import whiskvid.output_video as ov
+from base import FFmpegReader
+
+
+
 
 def invert_video(infile, outfile):
     """ This function inverts the colors in video designated by infile
         and writes the results to outfile
+
+        infile: input video filename
+        outfile: inverted output video filename
     """
     # eq=1:0:3:1:1:1:1:1'
     ff = ffmpy.FFmpeg(
@@ -22,14 +37,20 @@ def invert_video(infile, outfile):
                 '-ss',
                 '00:00:00',
                 '-t',
-                '00:00:20' 
+                '00:00:20',
+
                 ]}
         )
 
     ff.run()
 
 def invert_and_trace(video, outdir, results_file='trace.hdf5'):
-    """ Inverts a video's colors and then runs a trace """
+    """ Inverts a video's colors and then runs a trace
+
+        video : input video filename
+        outdir : directory where trace products will be placed
+        results_file : dataframe that holds the geometric data of trace
+    """
     video_name, ext = path.splitext(video)
     inverted_video_path = path.join(outdir, path.basename(video_name) + "_inverted" + ".mp4")
     invert_video(video, inverted_video_path)
@@ -49,8 +70,25 @@ def invert_and_trace(video, outdir, results_file='trace.hdf5'):
 
     print results
 
+    handle = tables.open_file(results_file)
+    input_reader = FFmpegReader(video)
+    ov.write_video_with_overlays(
+        'test.mp4',
+        input_reader,
+        320,
+        240,
+        whiskers_table=results,
+        whiskers_file_handle=handle,
+        frame_triggers=[0],
+        trigger_dstart = 0,
+        trigger_dstop = 600
+    )
+
 
 class PersistentRectangleSelector(RectangleSelector):
+    """
+        Allows a rectangle to be drawn on a matplotlib axis
+    """
     def release(self, event):
         super(PersistentRectangleSelector, self).release(event)
         self.to_draw.set_visible(True)
@@ -66,6 +104,9 @@ def onselect(eclick, erelease):
     print startpos
 
 def select_region(image_file):
+    """
+        Show image on axis and allow regional selection with rectangle
+    """
     global startpos
     global endpos
     ax = plt.gca()
@@ -96,14 +137,32 @@ def get_filtered_results_by_position(results_file, selected_positions):
         (results.fol_y > up_limit) & (results.fol_y < down_limit) &
         (results.fol_x < results.tip_x)
     ]
+    
+    # for index, x in filtered_results.iterrows():
+    #     vector = (x.tip_x - x.fol_x,  x.tip_y - x.fol_y)
+    #     print angle_between(vector, (1,0)) > 1
+
+    filtered_results = filtered_results[
+        filtered_results.apply(
+            lambda x: 
+                angle_between((x.tip_x - x.fol_x,  x.tip_y - x.fol_y), (1,0) ) > 10,
+            axis = 1
+        )
+    ]
+
 
     return filtered_results
 
 
-
+def angle_between(v1, v2):
+    """ Returns the angle in radians between vectors 'v1' and 'v2'    """
+    cosang = np.dot(v1, v2)
+    sinang = la.norm(np.cross(v1, v2))
+    return np.rad2deg(np.arctan2(sinang, cosang))
 
 
 if __name__ == "__main__":
+
     video = sys.argv[1]
     outdir = sys.argv[2]
     
