@@ -21,7 +21,7 @@ from base import FFmpegReader
 
 
 
-def invert_video(infile, outfile):
+def invert_video(infile, outfile, time='00:00:20'):
     """ This function inverts the colors in video designated by infile
         and writes the results to outfile
 
@@ -37,14 +37,14 @@ def invert_video(infile, outfile):
                 '-ss',
                 '00:00:00',
                 '-t',
-                '00:00:20',
+                time,
 
                 ]}
         )
 
     ff.run()
 
-def invert_and_trace(video, outdir, results_file='trace.hdf5'):
+def invert_and_trace(video, outdir, time='00:00:20', results_file='trace.hdf5'):
     """ Inverts a video's colors and then runs a trace
 
         video : input video filename
@@ -53,7 +53,7 @@ def invert_and_trace(video, outdir, results_file='trace.hdf5'):
     """
     video_name, ext = path.splitext(video)
     inverted_video_path = path.join(outdir, path.basename(video_name) + "_inverted" + ".mp4")
-    invert_video(video, inverted_video_path)
+    invert_video(video, inverted_video_path, time=time)
 
     #Trace
     WhiskiWrap.pipeline_trace(
@@ -68,10 +68,11 @@ def invert_and_trace(video, outdir, results_file='trace.hdf5'):
     region = select_region(tiff_file)
     results = get_filtered_results_by_position(results_file, region)
 
-    print results
 
     handle = tables.open_file(results_file)
     input_reader = FFmpegReader(video)
+    
+    print "Overlaying results onto video"
     ov.write_video_with_overlays(
         'test.mp4',
         input_reader,
@@ -81,7 +82,7 @@ def invert_and_trace(video, outdir, results_file='trace.hdf5'):
         whiskers_file_handle=handle,
         frame_triggers=[0],
         trigger_dstart = 0,
-        trigger_dstop = 600
+        trigger_dstop = 2400
     )
 
 
@@ -165,8 +166,9 @@ if __name__ == "__main__":
 
     video = sys.argv[1]
     outdir = sys.argv[2]
+    time = sys.argv[3]
     
-    invert_and_trace(video, outdir)
+    invert_and_trace(video, outdir, time=time)
 
     # select_region('output2/chunk00000000.tif')
     
