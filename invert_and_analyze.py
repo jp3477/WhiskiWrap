@@ -111,6 +111,8 @@ def invert_and_trace(video, outdir=None, time='00:00:20', results_file='trace.hd
 
     print "Saved in {}".format(overlayed_video)
 
+    plot_angle_over_time(results, path.join(outdir, 'angle_plot.png'), frame_rate)
+
 
 class PersistentRectangleSelector(RectangleSelector):
     """
@@ -178,7 +180,7 @@ def get_filtered_results_by_position(results_file, selected_positions):
     filtered_results = filtered_results[
         filtered_results.apply(
             lambda x: 
-                angle_between((x.tip_x - x.fol_x,  x.tip_y - x.fol_y), (1,0) ) > 10,
+                np.absolute(angle_between((x.tip_x - x.fol_x,  x.tip_y - x.fol_y), (1,0) )) > 5,
             axis = 1
         )
     ]
@@ -186,7 +188,7 @@ def get_filtered_results_by_position(results_file, selected_positions):
 
     return filtered_results
 
-def plot_angle_over_time(data, frame_rate=30):
+def plot_angle_over_time(data, savefile, frame_rate=30,):
     angles = []
     times = []
     gb = data.groupby('time')
@@ -205,11 +207,15 @@ def plot_angle_over_time(data, frame_rate=30):
         times.append(time_point)
         angles.append(average_angle)
 
+    median = np.median(angles)
+    times, angles = reject_outliers(np.array(times), np.array(angles))
+
     plt.plot(times,angles)
+    plt.plot(times, np.ones(len(times)) * median, 'r')
     plt.title('Angle behavior')
     plt.xlabel('Time (s)')
     plt.ylabel('Angle (degrees)')
-    plt.show()
+    plt.savefig(savefile)
 
 
 
@@ -239,6 +245,12 @@ def angle_between(v1, v2):
         return np.rad2deg(np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0)))
     else:
         return -1 * np.rad2deg(np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0)))
+
+def reject_outliers(xdata, ydata, m = 3.):
+    d = np.abs(ydata - np.median(ydata))
+    mdev = np.median(d)
+    s = d/mdev if mdev else 0.
+    return xdata[s<m], ydata[s<m]
 
 
 if __name__ == "__main__":
