@@ -54,14 +54,6 @@ def invert_and_trace(video, outdir=None, time='00:00:20', results_file='trace.hd
         results_file : dataframe that holds the geometric data of trace
     """
 
-    #Create the output directory if it doesn't exists or clear it
-    if outdir == None:
-        outdir = path.basename(video) + '_trace'
-    if not path.exists(outdir):
-        os.makedirs(outdir)
-    else:
-        map(os.remove, [ path.join(outdir,f) for f in os.listdir(outdir)])
-
     results_file = path.join(outdir, results_file)
 
     video_name, ext = path.splitext(video)
@@ -189,6 +181,9 @@ def get_filtered_results_by_position(results_file, selected_positions):
     return filtered_results
 
 def plot_angle_over_time(data, savefile, frame_rate=30,):
+    """
+        Plot whisker angles from dataset saved in data
+    """
     angles = []
     times = []
     gb = data.groupby('time')
@@ -217,8 +212,41 @@ def plot_angle_over_time(data, savefile, frame_rate=30,):
     plt.ylabel('Angle (degrees)')
     plt.savefig(savefile)
 
+def get_angle_over_time(data, frame_rate=30):
+    """
+        Plot whisker angles from dataset saved in data
+    """
+    angles = []
+    times = []
+    gb = data.groupby('time')
+
+    dfs_by_second = [gb.get_group(x) for x in gb.groups]
+
+    for df in dfs_by_second:
+        # print df.time
+        average_angle = df.apply(
+            lambda x: 
+                angle_between((x.tip_x - x.fol_x,  x.tip_y - x.fol_y), (1,0) ),
+            axis = 1
+        ).mean()
+
+        # time_point = (df.iloc[0]["time"] * frame_rate) / 1000
+        time_point = (df.iloc[0]["time"] / frame_rate)
+
+        times.append(time_point)
+        angles.append(average_angle)
 
 
+    median = np.median(angles)
+    times, angles = reject_outliers(np.array(times), np.array(angles))
+
+    data_to_plot = np.array([times, angles])
+    idx = np.argsort(data_to_plot[0])
+    data_to_plot = data_to_plot[:, idx]
+
+    times, angles = data_to_plot[0, :], data_to_plot[1, :]
+
+    return times, angles
 
 
 
@@ -247,15 +275,44 @@ def angle_between(v1, v2):
         return -1 * np.rad2deg(np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0)))
 
 def reject_outliers(xdata, ydata, m = 3.):
+    """ Remove outliers from a set of data
+        m: number of standard deviations away
+    """
     d = np.abs(ydata - np.median(ydata))
     mdev = np.median(d)
     s = d/mdev if mdev else 0.
     return xdata[s<m], ydata[s<m]
 
+def get_intervals(data, pickle_file, frame_rate=30.0):
+    rwin_vbase_times = pandas.read_pickle(pickle_file)['rwin_time_vbase']
+    max_time = data.iloc[-1].time / frame_rate
+
+    current_frame = 0
+    i = 0
+
+    while (rwin_vbase_times).iloc[i] < max_time:
+        
+        vbase_time = rwin_vbase_times.iloc[i]
+
+        #Create a interval that will always stay the same length
+        start = int((vbase_time - 2) * frame_rate)
+        interval = (start, start + (frame_rate * 5))
+        chunk = data[(data.time >= interval[0]) & (data.time < interval[1])]
+
+        times, angles = get_angle_over_time(chunk, frame_rate=frame_rate)
+        print (times - times[0]) * frame_rate
+        i += 1
+
+        
+
+
+
+
+
 
 if __name__ == "__main__":
     outdir = None
-    time = ''
+    time = None
 
     #Set up parameters
     try:
@@ -275,12 +332,19 @@ if __name__ == "__main__":
 
 
     video = sys.argv[1]
-    
-    if time:
-        invert_and_trace(video, outdir=outdir, time=time)
-    else:
-        invert_and_trace(video, outdir=outdir)
 
-    # select_region('output2/chunk00000000.tif')
+    #Create the output directory if it doesn't exists or clear it
+    if not outdir:
+        outdir = path.basename(video) + '_trace'
+    if not path.exists(outdir):
+        os.makedirs(outdir)
+    else:
+        map(os.remove, [ path.join(outdir,f) for f in os.listdir(outdir)])
+
+    if not time:
+        time = '00:00:40'
     
+
+    invert_and_trace(video, outdir=outdir, time=time)
+
 
