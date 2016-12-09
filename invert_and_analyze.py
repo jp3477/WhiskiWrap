@@ -287,8 +287,11 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
     rwin_vbase_times = pandas.read_pickle(pickle_file)['rwin_time_vbase']
     max_time = data.iloc[-1].time / frame_rate
 
-    current_frame = 0
     i = 0
+
+    trials = []
+    total_times =  np.array([])
+    total_angles = np.array([])
 
     while (rwin_vbase_times).iloc[i] < max_time:
         
@@ -300,8 +303,35 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
         chunk = data[(data.time >= interval[0]) & (data.time < interval[1])]
 
         times, angles = get_angle_over_time(chunk, frame_rate=frame_rate)
-        print (times - times[0]) * frame_rate
+        
+        normalized_times = np.rint(((times - times[0]) * frame_rate))
+
+
+        # trials.append(dict(zip(normalized_times, angles)))
+        # trials.append(zip(normalized_times, angles))
+
+        total_times = np.concatenate((total_times, normalized_times))
+
+        total_angles = np.concatenate((total_angles, angles))
+
+
+
         i += 1
+
+    
+
+    sortidx = np.argsort(total_times)
+    sorted_times = total_times[sortidx]
+
+    unqID_mask = np.append(True, np.diff(sorted_times, axis=0)).astype(bool)
+
+    ID = unqID_mask.cumsum() - 1
+    unique_times = sorted_times[unqID_mask]
+
+    average_angles = np.bincount(ID, total_angles[sortidx]) / np.bincount(ID)
+    return unique_times, average_angles
+
+
 
         
 
