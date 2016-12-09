@@ -329,6 +329,13 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
     unique_times = sorted_times[unqID_mask]
 
     average_angles = np.bincount(ID, total_angles[sortidx]) / np.bincount(ID)
+
+
+    plt.plot(unique_times,average_angles)
+    plt.title('Angle behavior')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Angle (degrees)')
+    plt.show()
     return unique_times, average_angles
 
 
