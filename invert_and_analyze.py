@@ -103,7 +103,8 @@ def invert_and_trace(video, outdir=None, time='00:00:20', results_file='trace.hd
 
     print "Saved in {}".format(overlayed_video)
 
-    plot_angle_over_time(results, path.join(outdir, 'angle_plot.png'), frame_rate)
+    # plot_angle_over_time(results, path.join(outdir, 'angle_plot.png'), frame_rate)
+    get_intervals(results, 'tm_20161102171831.KM86.pickle')
 
 
 class PersistentRectangleSelector(RectangleSelector):
@@ -331,10 +332,13 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
     average_angles = np.bincount(ID, total_angles[sortidx]) / np.bincount(ID)
 
 
-    plt.plot(unique_times,average_angles)
+    plt.plot(unique_times / frame_rate,average_angles)
+    plt.axvline(x=2, color='r', ls='--')
+    plt.plot()
     plt.title('Angle behavior')
     plt.xlabel('Time (s)')
     plt.ylabel('Angle (degrees)')
+    plt.xlim(0, 5)
     plt.show()
     return unique_times, average_angles
 
