@@ -7,6 +7,7 @@ import sys , getopt
 import WhiskiWrap
 from os import path
 import os
+
 import numpy as np
 import numpy.linalg as la
 from matplotlib.widgets import RectangleSelector
@@ -22,20 +23,20 @@ from pymediainfo import MediaInfo
 
 
 
-
 def invert_video(infile, outfile, time='00:00:20'):
     """ This function inverts the colors in video designated by infile
         and writes the results to outfile
 
         infile: input video filename
         outfile: inverted output video filename
+        time: time chunk of video to invert
     """
     # eq=1:0:3:1:1:1:1:1'
     ff = ffmpy.FFmpeg(
             global_options='-y',
             inputs={infile : None},
-            outputs={outfile : ['-vf', 
-                'lutrgb=r=negval:g=negval:b=negval' ,
+            outputs={outfile : ['-vf',
+                'lutrgb=r=negval:g=negval:b=negval,eq=2:0:0:1:1:1:1:1', 
                 '-ss',
                 '00:00:00',
                 '-t',
@@ -67,15 +68,14 @@ def invert_and_trace(video, outdir=None, time='00:00:20', results_file='trace.hd
         n_trace_processes=4
     )
 
-    tiff_file = [ fi for fi in os.listdir(outdir) if fi.endswith(".tif") ][0]
-    tiff_file = path.join(outdir, tiff_file)
+    return inverted_video, results_file
 
-    region = select_region(tiff_file)
-    results = get_filtered_results_by_position(results_file, region)
+    # get_intervals(results, 'tm_20161102171831.KM86.pickle')
 
+def overlay_video_with_results(orig_video, inverted_video, outdir, results, results_file):
 
     handle = tables.open_file(results_file)
-    input_reader = FFmpegReader(video)
+    input_reader = FFmpegReader(orig_video)
 
     vid_info = MediaInfo.parse(inverted_video).tracks[1]
 
@@ -103,8 +103,6 @@ def invert_and_trace(video, outdir=None, time='00:00:20', results_file='trace.hd
 
     print "Saved in {}".format(overlayed_video)
 
-    # plot_angle_over_time(results, path.join(outdir, 'angle_plot.png'), frame_rate)
-    get_intervals(results, 'tm_20161102171831.KM86.pickle')
 
 
 class PersistentRectangleSelector(RectangleSelector):
@@ -170,18 +168,28 @@ def get_filtered_results_by_position(results_file, selected_positions):
     #     vector = (x.tip_x - x.fol_x,  x.tip_y - x.fol_y)
     #     print angle_between(vector, (1,0)) > 1
 
-    filtered_results = filtered_results[
-        filtered_results.apply(
-            lambda x: 
-                np.absolute(angle_between((x.tip_x - x.fol_x,  x.tip_y - x.fol_y), (1,0) )) > 5,
-            axis = 1
-        )
-    ]
+    # filtered_results = filtered_results[
+    #     filtered_results.apply(
+    #         lambda x: 
+    #             np.absolute(angle_between((x.tip_x - x.fol_x,  x.tip_y - x.fol_y), (1,0) )) > 5,
+    #         axis = 1
+    #     )
+    # ]
 
 
     return filtered_results
 
-def plot_angle_over_time(data, savefile, frame_rate=30,):
+def get_results_from_tiff_files(outdir, results_file):
+    tiff_file = [ fi for fi in os.listdir(outdir) if fi.endswith(".tif") ][0]
+    tiff_file = path.join(outdir, tiff_file)
+
+    region = select_region(tiff_file)
+    results = get_filtered_results_by_position(results_file, region)
+
+    return results    
+
+
+def plot_angle_over_time(data, savefile=None, frame_rate=30,):
     """
         Plot whisker angles from dataset saved in data
     """
@@ -211,7 +219,11 @@ def plot_angle_over_time(data, savefile, frame_rate=30,):
     plt.title('Angle behavior')
     plt.xlabel('Time (s)')
     plt.ylabel('Angle (degrees)')
-    plt.savefig(savefile)
+
+    if savefile:
+        plt.savefig(savefile)
+    else:
+        plt.show()
 
 def get_angle_over_time(data, frame_rate=30):
     """
@@ -239,7 +251,9 @@ def get_angle_over_time(data, frame_rate=30):
 
 
     median = np.median(angles)
-    times, angles = reject_outliers(np.array(times), np.array(angles))
+    # times, angles = reject_outliers(np.array(times), np.array(angles))
+    times = np.array(times)
+    angles = np.array(angles)
 
     data_to_plot = np.array([times, angles])
     idx = np.argsort(data_to_plot[0])
@@ -250,14 +264,6 @@ def get_angle_over_time(data, frame_rate=30):
     return times, angles
 
 
-
-
-# def angle_between(v1, v2):
-#     """ Returns the angle in radians between vectors 'v1' and 'v2'    """
-#     cosang = np.dot(v1, v2)
-#     sinang = la.norm(np.cross(v1, v2))
-
-#     return np.rad2deg(np.arctan2(sinang, cosang))
 
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """
@@ -285,6 +291,15 @@ def reject_outliers(xdata, ydata, m = 3.):
     return xdata[s<m], ydata[s<m]
 
 def get_intervals(data, pickle_file, frame_rate=30.0):
+    """
+        Get average whisker angles at regular intervals determined by
+        data in pickle_file
+
+        data: Dataframe with whisker trace data
+        pickle_file: File containing dataframe with trial times
+        frame_rate: Frame rate of the video
+
+    """
     rwin_vbase_times = pandas.read_pickle(pickle_file)['rwin_time_vbase']
     max_time = data.iloc[-1].time / frame_rate
 
@@ -298,9 +313,10 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
         
         vbase_time = rwin_vbase_times.iloc[i]
 
-        #Create a interval that will always stay the same length
+        #Create a interval that will always stay the same length of 5 seconds
         start = int((vbase_time - 2) * frame_rate)
         interval = (start, start + (frame_rate * 5))
+        # print interval
         chunk = data[(data.time >= interval[0]) & (data.time < interval[1])]
 
         times, angles = get_angle_over_time(chunk, frame_rate=frame_rate)
@@ -314,12 +330,8 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
         total_times = np.concatenate((total_times, normalized_times))
 
         total_angles = np.concatenate((total_angles, angles))
-
-
-
         i += 1
 
-    
 
     sortidx = np.argsort(total_times)
     sorted_times = total_times[sortidx]
@@ -332,7 +344,7 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
     average_angles = np.bincount(ID, total_angles[sortidx]) / np.bincount(ID)
 
 
-    plt.plot(unique_times / frame_rate,average_angles)
+    plt.plot(unique_times / frame_rate, average_angles)
     plt.axvline(x=2, color='r', ls='--')
     plt.plot()
     plt.title('Angle behavior')
@@ -344,10 +356,12 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
 
 
 
+
+
+
+
+
         
-
-
-
 
 
 
@@ -377,15 +391,35 @@ if __name__ == "__main__":
     #Create the output directory if it doesn't exists or clear it
     if not outdir:
         outdir = path.basename(video) + '_trace'
+
     if not path.exists(outdir):
         os.makedirs(outdir)
     else:
-        map(os.remove, [ path.join(outdir,f) for f in os.listdir(outdir)])
+
+        delete = raw_input(
+            "Directory '{}' already exists. Do you want to erase its contents (Enter y or n) ".format(outdir)
+        )
+
+        if delete == 'y':
+            map(os.remove, [ path.join(outdir,f) for f in os.listdir(outdir)])
+        else:
+            i = 2
+            while path.exists(outdir + str(i)):
+                i += 1
+
+            outdir = outdir + str(i)
+            os.makedirs(outdir)
+
 
     if not time:
         time = '00:00:40'
     
 
-    invert_and_trace(video, outdir=outdir, time=time)
+    inverted_video, results_file = invert_and_trace(video, outdir=outdir, time=time)
+    results = get_results_from_tiff_files(outdir, 'trace.hdf5')
+    overlay_video_with_results(video, inverted_video, outdir, results, 'trace.hdf5')
+    get_intervals(results, 'tm_20161102171831.KM86.pickle')
+
+    # overlay_video_with_results(video, outdir)
 
 
