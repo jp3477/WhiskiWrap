@@ -55,3 +55,13 @@ docs/_build/
 
 # PyBuilder
 target/
+
+*.mkv
+*.mp4
+
+test.mp4
+*.pickle
+venv/
+*.mkv_trace
+
+

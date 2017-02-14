@@ -180,6 +180,10 @@ def get_filtered_results_by_position(results_file, selected_positions):
     return filtered_results
 
 def get_results_from_tiff_files(outdir, results_file):
+    """
+        Look at a single tiff file and trace out a region for filtering results
+
+    """
     tiff_file = [ fi for fi in os.listdir(outdir) if fi.endswith(".tif") ][0]
     tiff_file = path.join(outdir, tiff_file)
 
@@ -261,6 +265,7 @@ def get_angle_over_time(data, frame_rate=30):
 
     times, angles = data_to_plot[0, :], data_to_plot[1, :]
 
+    print angles < 0
     return times, angles
 
 
