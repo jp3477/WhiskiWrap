@@ -22,7 +22,6 @@ from pymediainfo import MediaInfo
 
 
 
-
 def invert_video(infile, outfile, time='00:00:20'):
     """ This function inverts the colors in video designated by infile
         and writes the results to outfile
@@ -47,7 +46,7 @@ def invert_video(infile, outfile, time='00:00:20'):
 
     ff.run()
 
-def invert_and_trace(video, outdir=None, time='00:00:20', results_file='trace.hdf5'):
+def invert_and_trace(video, time='00:00:20', results_file='trace.hdf5'):
     """ Inverts a video's colors and then runs a trace
 
         video : input video filename
@@ -55,10 +54,9 @@ def invert_and_trace(video, outdir=None, time='00:00:20', results_file='trace.hd
         results_file : dataframe that holds the geometric data of trace
     """
 
-    results_file = path.join(outdir, results_file)
 
     video_name, ext = path.splitext(video)
-    inverted_video = path.join(outdir, path.basename(video_name) + "_inverted" + ".mp4")
+    inverted_video = path.basename(video_name) + "_inverted" + ".mp4"
     invert_video(video, inverted_video, time=time)
 
     #Trace
@@ -72,10 +70,10 @@ def invert_and_trace(video, outdir=None, time='00:00:20', results_file='trace.hd
 
     # get_intervals(results, 'tm_20161102171831.KM86.pickle')
 
-def overlay_video_with_results(orig_video, inverted_video, outdir, results, results_file):
+def overlay_video_with_results(original_video, inverted_video, results, results_file):
 
     handle = tables.open_file(results_file)
-    input_reader = FFmpegReader(orig_video)
+    input_reader = FFmpegReader(original_video)
 
     vid_info = MediaInfo.parse(inverted_video).tracks[1]
 
@@ -86,7 +84,7 @@ def overlay_video_with_results(orig_video, inverted_video, outdir, results, resu
 
     frame_count = frame_rate * video_length
 
-    overlayed_video = path.join(outdir, 'overlayed.mp4')
+    overlayed_video = 'overlayed.mp4'
 
     print "Overlaying results onto video"
     ov.write_video_with_overlays(
@@ -141,7 +139,7 @@ def select_region(image_file):
 
     return {'startpos' : startpos, 'endpos' : endpos}
 
-def get_results_from_hdf5(hdf5_file):
+def read_hdf5(hdf5_file):
     with tables.open_file(hdf5_file) as fi:
         results = pandas.DataFrame.from_records(fi.root.summary.read())
 
@@ -151,7 +149,7 @@ def get_filtered_results_by_position(results_file, selected_positions):
     """ Filters identififed follicles by location and angle
 
     """
-    results = get_results_from_hdf5(results_file)
+    results = read_hdf5(results_file)
 
     startpos = selected_positions['startpos']
     endpos = selected_positions['endpos']
@@ -176,16 +174,17 @@ def get_filtered_results_by_position(results_file, selected_positions):
     #     )
     # ]
 
+    outfile = 'filtered_trace.hdf5'
+    filtered_results.to_hdf(outfile, 'filtered_trace')
 
     return filtered_results
 
-def get_results_from_tiff_files(outdir, results_file):
+def get_results_from_tiff_files(results_file):
     """
         Look at a single tiff file and trace out a region for filtering results
 
     """
-    tiff_file = [ fi for fi in os.listdir(outdir) if fi.endswith(".tif") ][0]
-    tiff_file = path.join(outdir, tiff_file)
+    tiff_file = [ fi for fi in os.listdir('.') if fi.endswith(".tif") ][0]
 
     region = select_region(tiff_file)
     results = get_filtered_results_by_position(results_file, region)
@@ -391,7 +390,7 @@ if __name__ == "__main__":
             time = arg
 
 
-    video = sys.argv[1]
+    video = os.path.abspath(sys.argv[1])
 
     #Create the output directory if it doesn't exists or clear it
     if not outdir:
@@ -415,15 +414,17 @@ if __name__ == "__main__":
             outdir = outdir + str(i)
             os.makedirs(outdir)
 
+    os.chdir(outdir)
+
 
     if not time:
         time = '00:00:40'
     
 
-    inverted_video, results_file = invert_and_trace(video, outdir=outdir, time=time)
-    results = get_results_from_tiff_files(outdir, 'trace.hdf5')
-    overlay_video_with_results(video, inverted_video, outdir, results, 'trace.hdf5')
-    get_intervals(results, 'tm_20161102171831.KM86.pickle')
+    inverted_video, results_file = invert_and_trace(video, time=time)
+    results = get_results_from_tiff_files('trace.hdf5')
+    overlay_video_with_results(video, inverted_video, results, 'filtered_trace.hdf5')
+    get_intervals(results, '../tm_20161102171831.KM86.pickle')
 
     # overlay_video_with_results(video, outdir)
 
