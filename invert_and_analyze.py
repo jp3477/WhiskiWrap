@@ -73,8 +73,9 @@ def invert_and_trace(video, time='00:00:20', results_file='trace.hdf5'):
 def overlay_video_with_results(original_video, inverted_video, results_file):
 
     # handle = tables.open_file(results_file)
+    
     input_reader = FFmpegReader(original_video)
-
+    
     vid_info = MediaInfo.parse(inverted_video).tracks[1]
 
     width = vid_info.width
@@ -410,7 +411,7 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
     plt.xlabel('Time (s)')
     plt.ylabel('Angle (degrees)')
     plt.xlim(0, 5)
-    plt.show()
+    plt.savefig('angle_plot')
     return unique_times, average_angles
 
 
@@ -445,11 +446,11 @@ if __name__ == "__main__":
             time = arg
 
 
-    video = os.path.abspath(sys.argv[1])
+    video = path.abspath(sys.argv[1])
 
     #Create the output directory if it doesn't exists or clear it
     if not outdir:
-        outdir = path.basename(video) + '_trace'
+        outdir = path.splitext(path.basename(video))[0] + '_trace'
 
     if not path.exists(outdir):
         os.makedirs(outdir)
@@ -479,7 +480,7 @@ if __name__ == "__main__":
     inverted_video, results_file = invert_and_trace(video, time=time)
     results = get_filtered_results_from_tiff_files('trace.hdf5')
     overlay_video_with_results(video, inverted_video, 'filtered_trace.hdf5')
-    get_intervals(results, '../tm_20161102171831.KM86.pickle')
+    get_intervals(results, '../../videos/tm_20161102171831.KM86.pickle')
 
     # overlay_video_with_results(video, outdir)
 
