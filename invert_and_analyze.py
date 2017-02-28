@@ -70,9 +70,9 @@ def invert_and_trace(video, time='00:00:20', results_file='trace.hdf5'):
 
     # get_intervals(results, 'tm_20161102171831.KM86.pickle')
 
-def overlay_video_with_results(original_video, inverted_video, results_file):
+def overlay_video_with_results(original_video, inverted_video, whiskers_file, whiskers_table):
 
-    # handle = tables.open_file(results_file)
+    handle = tables.open_file(whiskers_file)
     
     input_reader = FFmpegReader(original_video)
     
@@ -93,7 +93,8 @@ def overlay_video_with_results(original_video, inverted_video, results_file):
         input_reader,
         width,
         height,
-        whiskers_filename=results_file,
+        whiskers_table=whiskers_table,
+        whiskers_file_handle=handle,
         frame_triggers=[0],
         trigger_dstart = 0,
         trigger_dstop = frame_count
@@ -144,20 +145,16 @@ def select_region(image_file):
 def read_hdf5(hdf5_filename):
     with tables.open_file(hdf5_filename) as fi:
         results = pandas.DataFrame.from_records(fi.root.summary.read())
-        xpixels = fi.root.pixels_x.read()
-        ypixels = fi.root.pixels_y.read()
 
+    return results
 
-    return results, xpixels, ypixels
-
-def write_hdf5(hdf5_filename, summary, xpixels, ypixels):
+def write_hdf5(hdf5_filename, summary):
     WhiskiWrap.setup_hdf5(hdf5_filename, 1000000)
     with tables.open_file(hdf5_filename, mode='a') as hdf5file:
         table = hdf5file.get_node('/summary')
         h5seg = table.row
 
-        xpixels_vlarray = hdf5file.get_node('/pixels_x')
-        ypixels_vlarray = hdf5file.get_node('/pixels_y')
+
 
 
         for index, row in summary.iterrows():
@@ -172,9 +169,6 @@ def write_hdf5(hdf5_filename, summary, xpixels, ypixels):
      
             h5seg.append()
 
-        for xpixel, ypixel in zip(xpixels, ypixels):
-            xpixels_vlarray.append(xpixel)
-            ypixels_vlarray.append(ypixel)
 
         table.flush()
 
@@ -186,33 +180,33 @@ def get_filtered_results_by_position(results_file, selected_positions):
 
     """
 
-    summary, xpixels, ypixels = read_hdf5(results_file)
+    summary = read_hdf5(results_file)
 
     startpos = selected_positions['startpos']
     endpos = selected_positions['endpos']
     left_limit, right_limit = min(startpos[0], endpos[0]), max(startpos[0], endpos[0])
     up_limit, down_limit = min(startpos[1], endpos[1]), max(startpos[1], endpos[1])
 
-    # filtered_results = summary[
-    #     (summary.fol_x > left_limit) & (summary.fol_x < right_limit) &
-    #     (summary.fol_y > up_limit) & (summary.fol_y < down_limit) &
-    #     (summary.fol_x < summary.tip_x)
-    # ]
+    filtered_results = summary[
+        (summary.fol_x > left_limit) & (summary.fol_x < right_limit) &
+        (summary.fol_y > up_limit) & (summary.fol_y < down_limit) &
+        (summary.fol_x < summary.tip_x)
+    ]
 
 
-    indices = []
+    # indices = []
 
-    for index, summary_row in summary.iterrows():
-        if (summary_row.fol_x > left_limit) & (summary_row.fol_x < right_limit) & \
-        (summary_row.fol_y > up_limit) & (summary_row.fol_y < down_limit) & \
-        (summary_row.fol_x < summary_row.tip_x):
-            indices.append(index)
+    # for index, summary_row in summary.iterrows():
+    #     if (summary_row.fol_x > left_limit) & (summary_row.fol_x < right_limit) & \
+    #     (summary_row.fol_y > up_limit) & (summary_row.fol_y < down_limit) & \
+    #     (summary_row.fol_x < summary_row.tip_x):
+    #         indices.append(index)
 
 
-    summary = summary.iloc[indices]
+    # summary = summary.iloc[indices]
 
-    xpixels = [xpixels[i] for i in indices]
-    ypixels = [ypixels[i] for i in indices]
+    # xpixels = [xpixels[i] for i in indices]
+    # ypixels = [ypixels[i] for i in indices]
     print summary 
 
     
@@ -229,7 +223,7 @@ def get_filtered_results_by_position(results_file, selected_positions):
     # ]
 
     filtered_filename = 'filtered_trace.hdf5'
-    write_hdf5(filtered_filename, summary, xpixels, ypixels)
+    write_hdf5(filtered_filename, summary)
 
  
 
@@ -271,7 +265,7 @@ def plot_angle_over_time(data, savefile=None, frame_rate=30,):
         angles.append(average_angle)
 
     mean = np.mean(angles)
-    times, angles = reject_outliers(np.array(times), np.array(angles))
+    # times, angles = reject_outliers(np.array(times), np.array(angles))
 
     plt.plot(times,angles)
     plt.plot(times, np.ones(len(times)) * mean, 'r')
@@ -300,7 +294,7 @@ def get_angle_over_time(data, frame_rate=30):
             lambda x: 
                 angle_between((x.tip_x - x.fol_x,  x.tip_y - x.fol_y), (1,0) ),
             axis = 1
-        ).mean()
+        ).median()
 
         # time_point = (df.iloc[0]["time"] * frame_rate) / 1000
         time_point = (df.iloc[0]["time"] / frame_rate)
@@ -309,7 +303,7 @@ def get_angle_over_time(data, frame_rate=30):
         angles.append(average_angle)
 
 
-    mean = np.mean(angles)
+    # mean = np.mean(angles)
     # times, angles = reject_outliers(np.array(times), np.array(angles))
     times = np.array(times)
     angles = np.array(angles)
@@ -399,8 +393,8 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
     unqID_mask = np.append(True, np.diff(sorted_times, axis=0)).astype(bool)
 
     ID = unqID_mask.cumsum() - 1
-    unique_times = sorted_times[unqID_mask]
 
+    unique_times = sorted_times[unqID_mask]
     average_angles = np.bincount(ID, total_angles[sortidx]) / np.bincount(ID)
 
 
@@ -478,9 +472,9 @@ if __name__ == "__main__":
     
 
     inverted_video, results_file = invert_and_trace(video, time=time)
-    results = get_filtered_results_from_tiff_files('trace.hdf5')
-    overlay_video_with_results(video, inverted_video, 'filtered_trace.hdf5')
-    get_intervals(results, '../../videos/tm_20161102171831.KM86.pickle')
+    summary = get_filtered_results_from_tiff_files('trace.hdf5')
+    overlay_video_with_results(video, inverted_video, 'trace.hdf5', summary)
+    get_intervals(results, '../tm_20161102171831.KM86.pickle')
 
     # overlay_video_with_results(video, outdir)
 
