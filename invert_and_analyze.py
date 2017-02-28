@@ -137,6 +137,7 @@ def select_region(image_file):
 
     selector = PersistentRectangleSelector(ax, onselect, drawtype='box')
     plt.show()
+    plt.close()
 
     return {'startpos' : startpos, 'endpos' : endpos}
 
@@ -153,9 +154,6 @@ def write_hdf5(hdf5_filename, summary):
     with tables.open_file(hdf5_filename, mode='a') as hdf5file:
         table = hdf5file.get_node('/summary')
         h5seg = table.row
-
-
-
 
         for index, row in summary.iterrows():
             h5seg['chunk_start'] = row['chunk_start']
@@ -187,7 +185,7 @@ def get_filtered_results_by_position(results_file, selected_positions):
     left_limit, right_limit = min(startpos[0], endpos[0]), max(startpos[0], endpos[0])
     up_limit, down_limit = min(startpos[1], endpos[1]), max(startpos[1], endpos[1])
 
-    filtered_results = summary[
+    filtered_summary = summary[
         (summary.fol_x > left_limit) & (summary.fol_x < right_limit) &
         (summary.fol_y > up_limit) & (summary.fol_y < down_limit) &
         (summary.fol_x < summary.tip_x)
@@ -207,7 +205,7 @@ def get_filtered_results_by_position(results_file, selected_positions):
 
     # xpixels = [xpixels[i] for i in indices]
     # ypixels = [ypixels[i] for i in indices]
-    print summary 
+   
 
     
     # for index, x in filtered_results.iterrows():
@@ -223,11 +221,11 @@ def get_filtered_results_by_position(results_file, selected_positions):
     # ]
 
     filtered_filename = 'filtered_trace.hdf5'
-    write_hdf5(filtered_filename, summary)
+    # write_hdf5(filtered_filename, summary)
 
  
 
-    return summary
+    return filtered_summary
 
 def get_filtered_results_from_tiff_files(results_file):
     """
@@ -472,8 +470,8 @@ if __name__ == "__main__":
     
 
     inverted_video, results_file = invert_and_trace(video, time=time)
-    summary = get_filtered_results_from_tiff_files('trace.hdf5')
-    overlay_video_with_results(video, inverted_video, 'trace.hdf5', summary)
+    filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
+    overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
     get_intervals(results, '../tm_20161102171831.KM86.pickle')
 
     # overlay_video_with_results(video, outdir)
