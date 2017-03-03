@@ -451,7 +451,7 @@ if __name__ == "__main__":
             'o:t:'
         )
     except getopt.GetoptError:
-        print 'invert_and_analyze.py <video_name> -o <output_directory> -t <time_interval> '
+        print 'invert_and_analyze.py <video_name | video_direct_name> -o <output_directory> -t <time_interval> '
         sys.exit(2)
 
     for opt, arg in opts:
@@ -460,45 +460,89 @@ if __name__ == "__main__":
         elif opt == '-t':
             time = arg
 
-
-    video = path.abspath(sys.argv[1])
-
-    #Create the output directory if it doesn't exists or clear it
-    if not outdir:
-        outdir = 'traces/' + path.splitext(path.basename(video))[0] + '_trace'
-
-    if not path.exists(outdir):
-        os.makedirs(outdir)
-    else:
-
-        delete = raw_input(
-            "Directory '{}' already exists. Do you want to erase its contents (Enter y or n) ".format(outdir)
-        )
-
-        if delete == 'y':
-            map(os.remove, [ path.join(outdir,f) for f in os.listdir(outdir)])
-        else:
-            i = 2
-            while path.exists(outdir + str(i)):
-                i += 1
-
-            outdir = outdir + str(i)
-            os.makedirs(outdir)
-
-    os.chdir(outdir)
-
-
-    if not time:
-        time = '01:00:00'
     
-    region = get_desired_region_from_video(video)
-    results_file = 'trace.hdf5'
-    inverted_video, results_file = invert_and_trace(video, time=time)
-    # filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
-    filtered_summary = get_filtered_results_by_position(results_file, region)
-    overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
-    get_intervals(filtered_summary, pickle_file)
+    video_argument = path.abspath(sys.argv[1])
+    if !isdir(video_argument):
+        video = video_argument
+        #Create the output directory if it doesn't exists or clear it
+        if not outdir:
+            outdir = 'traces/' + path.splitext(path.basename(video))[0] + '_trace'
 
-    # overlay_video_with_results(video, outdir)
+        if not path.exists(outdir):
+            os.makedirs(outdir)
+        else:
+
+            delete = raw_input(
+                "Directory '{}' already exists. Do you want to erase its contents (Enter y or n) ".format(outdir)
+            )
+
+            if delete == 'y':
+                map(os.remove, [ path.join(outdir,f) for f in os.listdir(outdir)])
+            else:
+                i = 2
+                while path.exists(outdir + str(i)):
+                    i += 1
+
+                outdir = outdir + str(i)
+                os.makedirs(outdir)
+
+        os.chdir(outdir)
+
+
+        if not time:
+            time = '01:00:00'
+        
+        region = get_desired_region_from_video(video)
+        results_file = 'trace.hdf5'
+        inverted_video, results_file = invert_and_trace(video, time=time)
+        # filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
+        filtered_summary = get_filtered_results_by_position(results_file, region)
+        overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
+        get_intervals(filtered_summary, pickle_file)
+    else:
+        videos = video_argument
+        regions = []
+        for video in videos:
+            region = get_desired_region_from_video(video)
+            regions.append(region)
+
+        for idx, video in enumerate(videos):
+            if not outdir:
+                outdir = 'traces/' + path.splitext(path.basename(video))[0] + '_trace'
+
+            if not path.exists(outdir):
+                os.makedirs(outdir)
+            else:
+
+                # delete = raw_input(
+                #     "Directory '{}' already exists. Do you want to erase its contents (Enter y or n) ".format(outdir)
+                # )
+
+                #Force this for now
+                delete = 'n'
+                if delete == 'y':
+                    map(os.remove, [ path.join(outdir,f) for f in os.listdir(outdir)])
+                else:
+                    i = 2
+                    while path.exists(outdir + str(i)):
+                        i += 1
+
+                    outdir = outdir + str(i)
+                    os.makedirs(outdir)
+
+            os.chdir(outdir)
+
+
+            if not time:
+                time = '01:00:00'
+            
+            region = regions[idx]
+            results_file = 'trace.hdf5'
+            inverted_video, results_file = invert_and_trace(video, time=time)
+            # filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
+            filtered_summary = get_filtered_results_by_position(results_file, region)
+            overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
+            get_intervals(filtered_summary, pickle_file)
+
 
 
