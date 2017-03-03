@@ -13,6 +13,7 @@ import numpy.linalg as la
 from matplotlib.widgets import RectangleSelector
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+import pims
 
 import tables
 import pandas
@@ -237,7 +238,30 @@ def get_filtered_results_from_tiff_files(results_file):
     region = select_region(tiff_file)
     results = get_filtered_results_by_position(results_file, region)
 
-    return results    
+    return results
+
+def extract_frame(video_file, frame_name):
+    ff = ffmpy.FFmpeg(
+            global_options='-y',
+            inputs={video_file : None},
+            outputs={frame_name : [
+                '-r', '1',
+                '-vframes', '1',
+
+                ]}
+        )
+    print ff.cmd
+    ff.run()  
+
+
+def get_desired_region_from_video(video_file):
+    frame_name = 'frame.png'
+    extract_frame(video_file, frame_name)
+    
+    region = select_region(frame_name)
+    os.remove(frame_name)
+    return region
+
 
 
 def plot_angle_over_time(data, savefile=None, frame_rate=30,):
@@ -412,7 +436,6 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
 
 
 
-
         
 
 
@@ -420,7 +443,7 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
 if __name__ == "__main__":
     outdir = None
     time = None
-
+    pickle_file = path.abspath('../tm_20161102171831.KM86.pickle')
     #Set up parameters
     try:
         opts, args = getopt.getopt(
@@ -442,7 +465,7 @@ if __name__ == "__main__":
 
     #Create the output directory if it doesn't exists or clear it
     if not outdir:
-        outdir = path.splitext(path.basename(video))[0] + '_trace'
+        outdir = 'traces/' + path.splitext(path.basename(video))[0] + '_trace'
 
     if not path.exists(outdir):
         os.makedirs(outdir)
@@ -468,11 +491,13 @@ if __name__ == "__main__":
     if not time:
         time = '00:00:40'
     
-
+    region = get_desired_region_from_video(video)
+    results_file = 'trace.hdf5'
     inverted_video, results_file = invert_and_trace(video, time=time)
-    filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
+    # filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
+    filtered_summary = get_filtered_results_by_position(results_file, region)
     overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
-    get_intervals(results, '../tm_20161102171831.KM86.pickle')
+    get_intervals(filtered_summary, pickle_file)
 
     # overlay_video_with_results(video, outdir)
 
