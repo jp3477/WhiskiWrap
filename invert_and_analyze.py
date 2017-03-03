@@ -32,17 +32,17 @@ def invert_video(infile, outfile, time=None):
         time: time chunk of video to invert
     """
     # eq=1:0:3:1:1:1:1:1'
+    output_args = ['-vf',
+                'lutrgb=r=negval:g=negval:b=negval,eq=2:0:0:1:1:1:1:1', 
+                ]
+
+    if time:
+        output_args += ['-ss', '00:00:00', 't', time] 
+        
     ff = ffmpy.FFmpeg(
             global_options='-y',
             inputs={infile : None},
-            outputs={outfile : ['-vf',
-                'lutrgb=r=negval:g=negval:b=negval,eq=2:0:0:1:1:1:1:1', 
-                '-ss',
-                '00:00:00',
-                '-t',
-                time,
-
-                ]}
+            outputs={outfile : output_args}
         )
 
     ff.run()
@@ -462,7 +462,7 @@ if __name__ == "__main__":
 
     
     video_argument = path.abspath(sys.argv[1])
-    if !isdir(video_argument):
+    if not path.isdir(video_argument):
         video = video_argument
         #Create the output directory if it doesn't exists or clear it
         if not outdir:
@@ -491,18 +491,26 @@ if __name__ == "__main__":
 
         if not time:
             time = '01:00:00'
-        
-        region = get_desired_region_from_video(video)
-        results_file = 'trace.hdf5'
-        inverted_video, results_file = invert_and_trace(video, time=time)
-        # filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
-        filtered_summary = get_filtered_results_by_position(results_file, region)
-        overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
-        get_intervals(filtered_summary, pickle_file)
+        try:        
+            region = get_desired_region_from_video(video)
+            results_file = 'trace.hdf5'
+            inverted_video, results_file = invert_and_trace(video, time=time)
+            # filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
+            filtered_summary = get_filtered_results_by_position(results_file, region)
+            overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
+            get_intervals(filtered_summary, pickle_file)
+
+        except KeyboardInterrupt:
+            print 'Program was closed prematurely'
+
+            if len(os.listdir(outdir)):
+                print "Deleting empty {} directory".format(outdir)
+                os.rmdir(outdir)
     else:
-        videos = video_argument
+        videos = [path.join(video_argument, fle) for fle in os.listdir(video_argument) if fle.endswith('mp4') or fle.endswith('mkv')]
         regions = []
-        for video in videos:
+        for idx, video in enumerate(videos):
+            print "Preparing to trace {} ({} / {})".format(video, idx + 1, len(videos))
             region = get_desired_region_from_video(video)
             regions.append(region)
 
@@ -535,14 +543,18 @@ if __name__ == "__main__":
 
             if not time:
                 time = '01:00:00'
-            
-            region = regions[idx]
-            results_file = 'trace.hdf5'
-            inverted_video, results_file = invert_and_trace(video, time=time)
-            # filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
-            filtered_summary = get_filtered_results_by_position(results_file, region)
-            overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
-            get_intervals(filtered_summary, pickle_file)
+            try:
+                region = regions[idx]
+                results_file = 'trace.hdf5'
+                inverted_video, results_file = invert_and_trace(video, time=time)
+                # filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
+                filtered_summary = get_filtered_results_by_position(results_file, region)
+                overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
+                get_intervals(filtered_summary, pickle_file)
+            except KeyboardInterrupt:
+                print 'Program was closed prematurely'
 
-
+                if len(os.listdir(outdir)):
+                    print "Deleting empty {} directory".format(outdir)
+                    os.rmdir(outdir)
 
