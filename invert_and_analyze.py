@@ -23,7 +23,7 @@ from pymediainfo import MediaInfo
 
 
 
-def invert_video(infile, outfile, time='00:00:20'):
+def invert_video(infile, outfile, time=None):
     """ This function inverts the colors in video designated by infile
         and writes the results to outfile
 
@@ -443,7 +443,7 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
 if __name__ == "__main__":
     outdir = None
     time = None
-    pickle_file = path.abspath('../tm_20161102171831.KM86.pickle')
+    pickle_file = path.abspath('tm_20161102171831.KM86.pickle')
     #Set up parameters
     try:
         opts, args = getopt.getopt(
@@ -489,7 +489,7 @@ if __name__ == "__main__":
 
 
     if not time:
-        time = '00:00:40'
+        time = '01:00:00'
     
     region = get_desired_region_from_video(video)
     results_file = 'trace.hdf5'
