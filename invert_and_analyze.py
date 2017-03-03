@@ -38,7 +38,7 @@ def invert_video(infile, outfile, time=None):
 
     if time:
         output_args += ['-ss', '00:00:00', 't', time] 
-        
+
     ff = ffmpy.FFmpeg(
             global_options='-y',
             inputs={infile : None},
@@ -541,8 +541,6 @@ if __name__ == "__main__":
             os.chdir(outdir)
 
 
-            if not time:
-                time = '01:00:00'
             try:
                 region = regions[idx]
                 results_file = 'trace.hdf5'
