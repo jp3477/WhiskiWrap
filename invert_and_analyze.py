@@ -14,6 +14,7 @@ import numpy.linalg as la
 from matplotlib.widgets import RectangleSelector
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+import scipy.signal
 
 import tables
 import pandas
@@ -429,6 +430,10 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
     plt.xlim(0, 5)
     plt.savefig('angle_plot')
     return unique_times, average_angles
+
+
+def hilbert_transform(data):
+	analytic_signal = scipy.signal.hilbert(data)
 
 
 
