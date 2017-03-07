@@ -7,13 +7,13 @@ import sys , getopt
 import WhiskiWrap
 from os import path
 import os
+from datetime import date
 
 import numpy as np
 import numpy.linalg as la
 from matplotlib.widgets import RectangleSelector
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-import pims
 
 import tables
 import pandas
@@ -37,7 +37,7 @@ def invert_video(infile, outfile, time=None):
                 ]
 
     if time:
-        output_args += ['-ss', '00:00:00', 't', time] 
+        output_args += ['-ss', '00:00:00', '-t', time] 
 
     ff = ffmpy.FFmpeg(
             global_options='-y',
@@ -444,6 +444,7 @@ if __name__ == "__main__":
     outdir = None
     time = None
     pickle_file = path.abspath('tm_20161102171831.KM86.pickle')
+
     #Set up parameters
     try:
         opts, args = getopt.getopt(
@@ -466,7 +467,8 @@ if __name__ == "__main__":
         video = video_argument
         #Create the output directory if it doesn't exists or clear it
         if not outdir:
-            outdir = 'traces/' + path.splitext(path.basename(video))[0] + '_trace'
+            date_string = date.today().isoformat()
+            outdir =  'traces/' + date_string + '/' +  path.splitext(path.basename(video))[0] + '_trace'
 
         if not path.exists(outdir):
             os.makedirs(outdir)
@@ -516,7 +518,8 @@ if __name__ == "__main__":
 
         for idx, video in enumerate(videos):
             if not outdir:
-                outdir = 'traces/' + path.splitext(path.basename(video))[0] + '_trace'
+		date_string = date.today().isoformat()
+		outdir =  'traces/' + date_string + '/' +  path.splitext(path.basename(video))[0] + '_trace'
 
             if not path.exists(outdir):
                 os.makedirs(outdir)
@@ -550,6 +553,7 @@ if __name__ == "__main__":
                 overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
                 # get_intervals(filtered_summary, pickle_file)
             except KeyboardInterrupt:
+		# If program is terminated before directory is populated, removed directory
                 print 'Program was closed prematurely'
 
                 if len(os.listdir(outdir)):
