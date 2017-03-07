@@ -101,7 +101,7 @@ def overlay_video_with_results(original_video, inverted_video, whiskers_file, wh
         trigger_dstop = frame_count
     )
 
-    print "Saved in {}".format(overlayed_video)
+    print "Saved in {}".format(path.join(os.getcwd(), overlayed_video))
 
 
 
@@ -316,7 +316,7 @@ def get_angle_over_time(data, frame_rate=30):
             lambda x: 
                 angle_between((x.tip_x - x.fol_x,  x.tip_y - x.fol_y), (1,0) ),
             axis = 1
-        ).median()
+        ).mean()
 
         # time_point = (df.iloc[0]["time"] * frame_rate) / 1000
         time_point = (df.iloc[0]["time"] / frame_rate)
@@ -498,7 +498,7 @@ if __name__ == "__main__":
             # filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
             filtered_summary = get_filtered_results_by_position(results_file, region)
             overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
-            get_intervals(filtered_summary, pickle_file)
+            # get_intervals(filtered_summary, pickle_file)
 
         except KeyboardInterrupt:
             print 'Program was closed prematurely'
@@ -548,7 +548,7 @@ if __name__ == "__main__":
                 # filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
                 filtered_summary = get_filtered_results_by_position(results_file, region)
                 overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
-                get_intervals(filtered_summary, pickle_file)
+                # get_intervals(filtered_summary, pickle_file)
             except KeyboardInterrupt:
                 print 'Program was closed prematurely'
 

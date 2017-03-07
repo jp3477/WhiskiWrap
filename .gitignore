@@ -63,5 +63,6 @@ test.mp4
 *.pickle
 venv/
 *.mkv_trace
+traces/
 
 
