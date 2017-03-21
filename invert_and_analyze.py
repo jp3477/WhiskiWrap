@@ -22,6 +22,8 @@ import whiskvid.output_video as ov
 from base import FFmpegReader
 from pymediainfo import MediaInfo
 
+from make_pickle import make_vbase_pickle_file
+
 
 
 def invert_video(infile, outfile, time=None):
@@ -34,17 +36,15 @@ def invert_video(infile, outfile, time=None):
     """
     # eq=1:0:3:1:1:1:1:1'
     output_args = ['-vf',
-                'lutrgb=r=negval:g=negval:b=negval,eq=2:0:0:1:1:1:1:1', 
+                'lutrgb=r=negval:g=negval:b=negval,eq=2:0:0:1:1:1:1:1',
                 ]
 
     if time:
-        output_args += ['-ss', '00:00:00', '-t', time] 
-
-    ff = ffmpy.FFmpeg(
-            global_options='-y',
-            inputs={infile : None},
-            outputs={outfile : output_args}
-        )
+        output_args += ['-ss', '00:00:00', '-t', time]
+    ff = ffmpy.FFmpeg( global_options='-y',
+        inputs={infile : None},
+        outputs={outfile : output_args}
+    )
 
     ff.run()
 
@@ -63,7 +63,7 @@ def invert_and_trace(video, time='00:00:20', results_file='trace.hdf5'):
 
     #Trace
     WhiskiWrap.pipeline_trace(
-        inverted_video, 
+        inverted_video,
         results_file,
         n_trace_processes=4
     )
@@ -75,9 +75,9 @@ def invert_and_trace(video, time='00:00:20', results_file='trace.hdf5'):
 def overlay_video_with_results(original_video, inverted_video, whiskers_file, whiskers_table):
 
     handle = tables.open_file(whiskers_file)
-    
+
     input_reader = FFmpegReader(original_video)
-    
+
     vid_info = MediaInfo.parse(inverted_video).tracks[1]
 
     width = vid_info.width
@@ -166,7 +166,7 @@ def write_hdf5(hdf5_filename, summary):
             h5seg['tip_x'] = row['tip_x']
             h5seg['tip_y'] = row['tip_y']
             h5seg['pixlen'] = row['pixlen']
-     
+
             h5seg.append()
 
 
@@ -207,25 +207,25 @@ def get_filtered_results_by_position(results_file, selected_positions):
 
     # xpixels = [xpixels[i] for i in indices]
     # ypixels = [ypixels[i] for i in indices]
-   
 
-    
+
+
     # for index, x in filtered_results.iterrows():
     #     vector = (x.tip_x - x.fol_x,  x.tip_y - x.fol_y)
     #     print angle_between(vector, (1,0)) > 1
 
     # filtered_results = filtered_results[
     #     filtered_results.apply(
-    #         lambda x: 
+    #         lambda x:
     #             np.absolute(angle_between((x.tip_x - x.fol_x,  x.tip_y - x.fol_y), (1,0) )) > 5,
     #         axis = 1
     #     )
     # ]
 
     filtered_filename = 'filtered_trace.hdf5'
-    # write_hdf5(filtered_filename, summary)
+    write_hdf5(filtered_filename, filtered_summary)
 
- 
+
 
     return filtered_summary
 
@@ -252,13 +252,13 @@ def extract_frame(video_file, frame_name):
                 ]}
         )
     print ff.cmd
-    ff.run()  
+    ff.run()
 
 
 def get_desired_region_from_video(video_file):
     frame_name = 'frame.png'
     extract_frame(video_file, frame_name)
-    
+
     region = select_region(frame_name)
     os.remove(frame_name)
     return region
@@ -277,7 +277,7 @@ def plot_angle_over_time(data, savefile=None, frame_rate=30,):
 
     for df in dfs_by_second:
         average_angle = df.apply(
-            lambda x: 
+            lambda x:
                 angle_between((x.tip_x - x.fol_x,  x.tip_y - x.fol_y), (1,0) ),
             axis = 1
         ).mean()
@@ -314,7 +314,7 @@ def get_angle_over_time(data, frame_rate=30):
     for df in dfs_by_second:
         # print df.time
         average_angle = df.apply(
-            lambda x: 
+            lambda x:
                 angle_between((x.tip_x - x.fol_x,  x.tip_y - x.fol_y), (1,0) ),
             axis = 1
         ).mean()
@@ -387,7 +387,7 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
     total_angles = np.array([])
 
     while (rwin_vbase_times).iloc[i] < max_time:
-        
+
         vbase_time = rwin_vbase_times.iloc[i]
 
         #Create a interval that will always stay the same length of 5 seconds
@@ -397,7 +397,7 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
         chunk = data[(data.time >= interval[0]) & (data.time < interval[1])]
 
         times, angles = get_angle_over_time(chunk, frame_rate=frame_rate)
-        
+
         normalized_times = np.rint(((times - times[0]) * frame_rate))
 
 
@@ -433,7 +433,12 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
 
 
 def hilbert_transform(data):
-	analytic_signal = scipy.signal.hilbert(data)
+    analytic_signal = scipy.signal.hilbert(data)
+
+
+def get_session_from_video_filename(video_filename):
+    session = re.search('-(\d*)', video_filename).group(1)
+    return session
 
 
 
@@ -441,14 +446,15 @@ def hilbert_transform(data):
 
 
 
-        
+
 
 
 
 if __name__ == "__main__":
     outdir = None
     time = None
-    pickle_file = path.abspath('tm_20161102171831.KM86.pickle')
+    #pickle_file = path.abspath('tm_20161102171831.KM86.pickle')
+    root_dir = os.getcwd()
 
     #Set up parameters
     try:
@@ -466,14 +472,14 @@ if __name__ == "__main__":
         elif opt == '-t':
             time = arg
 
-    
+
     video_argument = path.abspath(sys.argv[1])
     if not path.isdir(video_argument):
         video = video_argument
         #Create the output directory if it doesn't exists or clear it
         if not outdir:
             date_string = date.today().isoformat()
-            outdir =  'traces/' + date_string + '/' +  path.splitext(path.basename(video))[0] + '_trace'
+            outdir =  path.join(root_dir, 'traces/' + date_string + '/' +  path.splitext(path.basename(video))[0] + '_trace')
 
         if not path.exists(outdir):
             os.makedirs(outdir)
@@ -498,7 +504,7 @@ if __name__ == "__main__":
 
         if not time:
             time = '01:00:00'
-        try:        
+        try:
             region = get_desired_region_from_video(video)
             results_file = 'trace.hdf5'
             inverted_video, results_file = invert_and_trace(video, time=time)
@@ -506,6 +512,9 @@ if __name__ == "__main__":
             filtered_summary = get_filtered_results_by_position(results_file, region)
             overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
             # get_intervals(filtered_summary, pickle_file)
+
+            #Change back to root directory at end
+            os.chdir(root_dir)
 
         except KeyboardInterrupt:
             print 'Program was closed prematurely'
@@ -524,7 +533,7 @@ if __name__ == "__main__":
         for idx, video in enumerate(videos):
             if not outdir:
 		date_string = date.today().isoformat()
-		outdir =  'traces/' + date_string + '/' +  path.splitext(path.basename(video))[0] + '_trace'
+                outdir =  path.join(root_dir, 'traces/' + date_string + '/' +  path.splitext(path.basename(video))[0] + '_trace')
 
             if not path.exists(outdir):
                 os.makedirs(outdir)
@@ -557,6 +566,10 @@ if __name__ == "__main__":
                 filtered_summary = get_filtered_results_by_position(results_file, region)
                 overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
                 # get_intervals(filtered_summary, pickle_file)
+
+                #Change back to root directory at end
+                os.chdir(root_dir)
+
             except KeyboardInterrupt:
 		# If program is terminated before directory is populated, removed directory
                 print 'Program was closed prematurely'
@@ -564,4 +577,7 @@ if __name__ == "__main__":
                 if len(os.listdir(outdir)):
                     print "Deleting empty {} directory".format(outdir)
                     os.rmdir(outdir)
+            except:
+                os.chdir(root_dir)
+		continue
 
