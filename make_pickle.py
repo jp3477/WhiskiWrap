@@ -8,6 +8,7 @@ import pandas
 import sys
 import os
 import re
+from IPython import embed
 
 # Get the synced behavior and video files
 
@@ -36,9 +37,9 @@ def make_vbase_pickle_file(master_pickle, session):
     print "loading luminances ... this will take a while"
     lums = my.video.process_chunks_of_video(video_file, n_frames=np.inf)
 
-    # Get onsets and durations
+    # Get onsets and durations, lowered delta from 75 to 60
     onsets, durations = MCwatch.behavior.syncing.extract_onsets_and_durations(-lums,
-        delta=75, diffsize=2, refrac=50)
+        delta=60, diffsize=2, refrac=50)
 
     # Convert to seconds in the spurious timebase
     v_onsets = onsets / 30.
@@ -63,8 +64,10 @@ def make_vbase_pickle_file(master_pickle, session):
     # Calculate rwin time in vbase
     tm['rwin_time_vbase'] = np.polyval(b2v_fit, tm.rwin_time)
 
+    embed()
+
     # Save the tm
-    outfile = 'tm_%s.pickle' % session_name
+    outfile = 'tm_%s.pickle' % session
     tm.to_pickle(outfile)
 
     return outfile
@@ -74,3 +77,4 @@ def get_session_from_video_filename(video_filename):
     session = re.search('-(\d*)', video_filename).group(1)
     return session
 
+make_vbase_pickle_file('/home/jason/jason_data/sbvdf.pickle', '20170303122448')
