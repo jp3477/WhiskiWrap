@@ -1,26 +1,33 @@
 # Sync a session
 
-import MCwatch.behavior
+import MCwatch.behavior.syncing
 import my
 import numpy as np
 import ArduFSM
 import pandas
 import sys
+import os
+import re
 
 # Get the synced behavior and video files
 
 def make_vbase_pickle_file(master_pickle, session):
     sbvdf = pandas.read_pickle(master_pickle)
-    session = sbvdf.loc[sbvdf.session.str.startswith(session)].session
+    session = sbvdf.loc[sbvdf.session.str.startswith(session)].session.values[0]
+    print session
+
+    #Had to make a symlink to my home directory named 'jack'
 
     # Choose a session
-    session_params = sbvdf.set_index('session').ix[s]
+    session_params = sbvdf.set_index('session').ix[session]
 
     # Get the video file for this
     video_file = session_params['filename_video']
+    print video_file
 
     # Get the behavior file
     bfile = session_params['filename']
+    print bfile
 
     # Get the trial matrix filename
     trial_matrix_filename = os.path.join('/home/jack/jason_data/trial_matrix', session)
@@ -57,7 +64,13 @@ def make_vbase_pickle_file(master_pickle, session):
     tm['rwin_time_vbase'] = np.polyval(b2v_fit, tm.rwin_time)
 
     # Save the tm
-    tm.to_pickle('tm_%s.pickle' % session_name)
+    outfile = 'tm_%s.pickle' % session_name
+    tm.to_pickle(outfile)
+
+    return outfile
 
 
+def get_session_from_video_filename(video_filename):
+    session = re.search('-(\d*)', video_filename).group(1)
+    return session
 

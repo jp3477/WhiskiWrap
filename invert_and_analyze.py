@@ -34,13 +34,14 @@ def invert_video(infile, outfile, time=None):
         outfile: inverted output video filename
         time: time chunk of video to invert
     """
-    # eq=1:0:3:1:1:1:1:1'
+
     output_args = ['-vf',
                 'lutrgb=r=negval:g=negval:b=negval,eq=2:0:0:1:1:1:1:1',
                 ]
 
     if time:
         output_args += ['-ss', '00:00:00', '-t', time]
+
     ff = ffmpy.FFmpeg( global_options='-y',
         inputs={infile : None},
         outputs={outfile : output_args}
@@ -70,9 +71,17 @@ def invert_and_trace(video, time='00:00:20', results_file='trace.hdf5'):
 
     return inverted_video, results_file
 
-    # get_intervals(results, 'tm_20161102171831.KM86.pickle')
 
 def overlay_video_with_results(original_video, inverted_video, whiskers_file, whiskers_table):
+    """
+        Overlays whisker trace data onto a video.
+
+        inverted_video: The filename of the inverted video output by invert_video
+            Used to obtain frame_rate and video dimensions
+        whiskers_file: The name of the hdf5 file with saved whisker data
+        whisker_table: A pandas dataframe representation of whisker data
+            Holds the filtered data if necessary
+    """
 
     handle = tables.open_file(whiskers_file)
 
@@ -129,7 +138,9 @@ def onselect(eclick, erelease):
 
 def select_region(image_file):
     """
-        Show image on axis and allow regional selection with rectangle
+        Show image on axis and allow selection of a region with rectangle
+
+        image_file: The image onto which a rectangle will be traced
     """
     global startpos
     global endpos
@@ -146,12 +157,23 @@ def select_region(image_file):
 
 
 def read_hdf5(hdf5_filename):
+    """
+        Reads summary data from an hdf5 file
+
+        hdf5_filename: name of input hdf5 file
+    """
     with tables.open_file(hdf5_filename) as fi:
         results = pandas.DataFrame.from_records(fi.root.summary.read())
 
     return results
 
 def write_hdf5(hdf5_filename, summary):
+    """
+        Writes data to a new hdf5 file
+
+        hdf5_filename: name of output hdf5 file
+        summary: pandas dataframe of traced whisker data
+    """
     WhiskiWrap.setup_hdf5(hdf5_filename, 1000000)
     with tables.open_file(hdf5_filename, mode='a') as hdf5file:
         table = hdf5file.get_node('/summary')
@@ -177,6 +199,9 @@ def write_hdf5(hdf5_filename, summary):
 
 def get_filtered_results_by_position(results_file, selected_positions):
     """ Filters identififed follicles by location and angle
+
+        results_file: name of file with traced whisker data
+        selected_data: a 2 x 2 array of the rectangular coordinates where whisker follicles are expected
 
     """
 
@@ -233,6 +258,8 @@ def get_filtered_results_from_tiff_files(results_file):
     """
         Look at a single tiff file and trace out a region for filtering results
 
+        results_file: filename of hdf5 file with traced whisker data
+
     """
     tiff_file = [ fi for fi in os.listdir('.') if fi.endswith(".tif") ][0]
 
@@ -242,6 +269,13 @@ def get_filtered_results_from_tiff_files(results_file):
     return results
 
 def extract_frame(video_file, frame_name):
+    """
+        Extract first frame from a video and save it as an image
+
+        video_file: input video filename
+        frame_name: name of output image file
+
+    """
     ff = ffmpy.FFmpeg(
             global_options='-y',
             inputs={video_file : None},
@@ -256,6 +290,9 @@ def extract_frame(video_file, frame_name):
 
 
 def get_desired_region_from_video(video_file):
+    """
+        Extract frame from a video file and trace a region of interest
+    """
     frame_name = 'frame.png'
     extract_frame(video_file, frame_name)
 
@@ -436,9 +473,6 @@ def hilbert_transform(data):
     analytic_signal = scipy.signal.hilbert(data)
 
 
-def get_session_from_video_filename(video_filename):
-    session = re.search('-(\d*)', video_filename).group(1)
-    return session
 
 
 
