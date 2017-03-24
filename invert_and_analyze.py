@@ -22,7 +22,7 @@ import whiskvid.output_video as ov
 from base import FFmpegReader
 from pymediainfo import MediaInfo
 
-from make_pickle import make_vbase_pickle_file
+from make_pickle import make_vbase_pickle_file, get_session_from_video_filename
 
 
 
@@ -374,7 +374,6 @@ def get_angle_over_time(data, frame_rate=30):
 
     times, angles = data_to_plot[0, :], data_to_plot[1, :]
 
-    print angles < 0
     return times, angles
 
 
@@ -457,7 +456,6 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
     unique_times = sorted_times[unqID_mask]
     average_angles = np.bincount(ID, total_angles[sortidx]) / np.bincount(ID)
 
-
     plt.plot(unique_times / frame_rate, average_angles)
     plt.axvline(x=2, color='r', ls='--')
     plt.plot()
@@ -487,8 +485,9 @@ def hilbert_transform(data):
 if __name__ == "__main__":
     outdir = None
     time = None
-    #pickle_file = path.abspath('tm_20161102171831.KM86.pickle')
+    master_pickle = path.abspath('~/jason_data/sbvdf.pickle')
     root_dir = os.getcwd()
+    nas_dir = '~/mnt/jason_nas2_home'
 
     #Set up parameters
     try:
@@ -513,7 +512,7 @@ if __name__ == "__main__":
         #Create the output directory if it doesn't exists or clear it
         if not outdir:
             date_string = date.today().isoformat()
-            outdir =  path.join(root_dir, 'traces/' + date_string + '/' +  path.splitext(path.basename(video))[0] + '_trace')
+            outdir =  path.join(nas_dir, 'traces/' + date_string + '/' +  path.splitext(path.basename(video))[0] + '_trace')
 
         if not path.exists(outdir):
             os.makedirs(outdir)
@@ -567,7 +566,7 @@ if __name__ == "__main__":
         for idx, video in enumerate(videos):
             if not outdir:
 		date_string = date.today().isoformat()
-                outdir =  path.join(root_dir, 'traces/' + date_string + '/' +  path.splitext(path.basename(video))[0] + '_trace')
+                outdir =  path.join(nas_dir, 'traces/' + date_string + '/' +  path.splitext(path.basename(video))[0] + '_trace')
 
             if not path.exists(outdir):
                 os.makedirs(outdir)
@@ -599,7 +598,11 @@ if __name__ == "__main__":
                 # filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
                 filtered_summary = get_filtered_results_by_position(results_file, region)
                 overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
-                # get_intervals(filtered_summary, pickle_file)
+
+                session = get_session_from_video_filename(video)
+                pickle_file = make_vbase_pickle_file(master_pickle, session)
+
+                get_intervals(filtered_summary, pickle_file)
 
                 #Change back to root directory at end
                 os.chdir(root_dir)
@@ -612,6 +615,6 @@ if __name__ == "__main__":
                     print "Deleting empty {} directory".format(outdir)
                     os.rmdir(outdir)
             except:
-                os.chdir(root_dir)
+                os.chdir(nas_dir)
 		continue
 
