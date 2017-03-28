@@ -209,15 +209,18 @@ def get_filtered_results_by_position(results_file, selected_positions):
 
     startpos = selected_positions['startpos']
     endpos = selected_positions['endpos']
+
     left_limit, right_limit = min(startpos[0], endpos[0]), max(startpos[0], endpos[0])
     up_limit, down_limit = min(startpos[1], endpos[1]), max(startpos[1], endpos[1])
+
+    print 'Left limit: {}, Right limit: {}'.format(left_limit, right_limit)
 
     filtered_summary = summary[
         (summary.fol_x > left_limit) & (summary.fol_x < right_limit) &
         (summary.fol_y > up_limit) & (summary.fol_y < down_limit) &
         (summary.fol_x < summary.tip_x)
     ]
-
+    print filtered_summary
 
     # indices = []
 
@@ -248,7 +251,7 @@ def get_filtered_results_by_position(results_file, selected_positions):
     # ]
 
     filtered_filename = 'filtered_trace.hdf5'
-    write_hdf5(filtered_filename, filtered_summary)
+    # write_hdf5(filtered_filename, filtered_summary)
 
 
 
@@ -422,8 +425,9 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
     total_times =  np.array([])
     total_angles = np.array([])
 
-    while (rwin_vbase_times).iloc[i] < max_time:
+    while i < rwin_vbase_times.size and (rwin_vbase_times).iloc[i] < max_time:
 
+        print 'Max Time: {}, Current Time: {}'.format(max_time, rwin_vbase_times.iloc[i])
         vbase_time = rwin_vbase_times.iloc[i]
 
         #Create a interval that will always stay the same length of 5 seconds
@@ -464,6 +468,8 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
     plt.ylabel('Angle (degrees)')
     plt.xlim(0, 5)
     plt.savefig('angle_plot')
+
+    print 'Saved angle plot in {}'.format(path.join(os.getcwd(), 'angle_plot'))
     return unique_times, average_angles
 
 
@@ -485,9 +491,9 @@ def hilbert_transform(data):
 if __name__ == "__main__":
     outdir = None
     time = None
-    master_pickle = path.abspath('~/jason_data/sbvdf.pickle')
+    master_pickle = path.expanduser('~/jason_data/sbvdf.pickle')
     root_dir = os.getcwd()
-    nas_dir = '~/mnt/jason_nas2_home'
+    nas_dir = path.expanduser('~/mnt/jason_nas2_home')
 
     #Set up parameters
     try:
@@ -541,13 +547,17 @@ if __name__ == "__main__":
             region = get_desired_region_from_video(video)
             results_file = 'trace.hdf5'
             inverted_video, results_file = invert_and_trace(video, time=time)
-            # filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
             filtered_summary = get_filtered_results_by_position(results_file, region)
-            overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
-            # get_intervals(filtered_summary, pickle_file)
+            #overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
+
+
+            session = get_session_from_video_filename(video)
+            pickle_file = make_vbase_pickle_file(master_pickle, session)
+
+            get_intervals(filtered_summary, pickle_file)
 
             #Change back to root directory at end
-            os.chdir(root_dir)
+            os.chdir(nas_dir)
 
         except KeyboardInterrupt:
             print 'Program was closed prematurely'
@@ -597,7 +607,7 @@ if __name__ == "__main__":
                 inverted_video, results_file = invert_and_trace(video, time=time)
                 # filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
                 filtered_summary = get_filtered_results_by_position(results_file, region)
-                overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
+                #overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
 
                 session = get_session_from_video_filename(video)
                 pickle_file = make_vbase_pickle_file(master_pickle, session)
@@ -605,7 +615,7 @@ if __name__ == "__main__":
                 get_intervals(filtered_summary, pickle_file)
 
                 #Change back to root directory at end
-                os.chdir(root_dir)
+                os.chdir(nas_dir)
 
             except KeyboardInterrupt:
 		# If program is terminated before directory is populated, removed directory

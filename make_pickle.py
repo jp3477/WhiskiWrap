@@ -43,6 +43,7 @@ def make_vbase_pickle_file(master_pickle, session):
 
     # Convert to seconds in the spurious timebase
     v_onsets = onsets / 30.
+    v_onsets = v_onsets[1:]
 
     # Get the data from Ardulines
     lines = ArduFSM.TrialSpeak.read_lines_from_file(bfile)
@@ -66,6 +67,7 @@ def make_vbase_pickle_file(master_pickle, session):
 
     embed()
 
+
     # Save the tm
     outfile = 'tm_%s.pickle' % session
     tm.to_pickle(outfile)
@@ -77,4 +79,6 @@ def get_session_from_video_filename(video_filename):
     session = re.search('-(\d*)', video_filename).group(1)
     return session
 
-make_vbase_pickle_file('/home/jason/jason_data/sbvdf.pickle', '20170303122448')
+#master_pickle = os.path.expanduser('~/jason_data/sbvdf.pickle')
+#session = '20170303122448'
+#make_vbase_pickle_file(master_pickle, session)
