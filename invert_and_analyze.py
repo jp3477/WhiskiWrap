@@ -350,9 +350,11 @@ def get_angle_over_time(data, frame_rate=30):
     times = []
     gb = data.groupby('time')
 
-    dfs_by_second = [gb.get_group(x) for x in gb.groups]
+    dfs_by_frame = [gb.get_group(x) for x in gb.groups]
 
-    for df in dfs_by_second:
+
+    for i in range(len(dfs_by_frame)):
+        df = dfs_by_frame[i]
         # print df.time
         average_angle = df.apply(
             lambda x:
@@ -360,25 +362,33 @@ def get_angle_over_time(data, frame_rate=30):
             axis = 1
         ).mean()
 
-        # time_point = (df.iloc[0]["time"] * frame_rate) / 1000
-        time_point = (df.iloc[0]["time"] / frame_rate)
+        # time_point = (df.iloc[0]["time"] / frame_rate)
 
-        times.append(time_point)
-        angles.append(average_angle)
+        # times.append(time_point)
+        # angles.append(average_angle)
+
+        dfs_by_frame[i]['angle'] = average_angle
+        # print dfs_by_frame[i], i
+
+
+
 
 
     # mean = np.mean(angles)
     # times, angles = reject_outliers(np.array(times), np.array(angles))
-    times = np.array(times)
-    angles = np.array(angles)
+    # times = np.array(times)
+    # angles = np.array(angles)
 
-    data_to_plot = np.array([times, angles])
-    idx = np.argsort(data_to_plot[0])
-    data_to_plot = data_to_plot[:, idx]
+    # data_to_plot = np.array([times, angles])
+    # idx = np.argsort(data_to_plot[0])
+    # data_to_plot = data_to_plot[:, idx]
 
-    times, angles = data_to_plot[0, :], data_to_plot[1, :]
+    # times, angles = data_to_plot[0, :], data_to_plot[1, :]
 
-    return times, angles
+    pandas.concat(dfs_by_frame)
+    data = pandas.concat(dfs_by_frame)
+    print data
+    return data
 
 
 
