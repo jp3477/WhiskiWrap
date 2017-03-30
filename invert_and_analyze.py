@@ -24,6 +24,10 @@ from pymediainfo import MediaInfo
 
 from make_pickle import make_vbase_pickle_file, get_session_from_video_filename
 
+root_dir = os.getcwd()
+nas_dir = path.expanduser('~/mnt/jason_nas2_home')
+master_pickle = path.expanduser('~/jason_data/sbvdf.pickle')
+
 
 
 def invert_video(infile, outfile, time=None):
@@ -209,18 +213,15 @@ def get_filtered_results_by_position(results_file, selected_positions):
 
     startpos = selected_positions['startpos']
     endpos = selected_positions['endpos']
-
     left_limit, right_limit = min(startpos[0], endpos[0]), max(startpos[0], endpos[0])
     up_limit, down_limit = min(startpos[1], endpos[1]), max(startpos[1], endpos[1])
-
-    print 'Left limit: {}, Right limit: {}'.format(left_limit, right_limit)
 
     filtered_summary = summary[
         (summary.fol_x > left_limit) & (summary.fol_x < right_limit) &
         (summary.fol_y > up_limit) & (summary.fol_y < down_limit) &
         (summary.fol_x < summary.tip_x)
     ]
-    print filtered_summary
+
 
     # indices = []
 
@@ -483,7 +484,54 @@ def hilbert_transform(data):
 
 
 
+def run_pipeline(video, outdir, time, region):
+    #Create the output directory if it doesn't exists or clear it
+    if not path.exists(outdir):
+        os.makedirs(outdir)
+    else:
 
+        # delete = raw_input(
+        #     "Directory '{}' already exists. Do you want to erase its contents (Enter y or n) ".format(outdir)
+        # )
+
+        #Temporarily force skip
+        delete = 'n';
+        if delete == 'y':
+            map(os.remove, [ path.join(outdir,f) for f in os.listdir(outdir)])
+        else:
+            i = 2
+            while path.exists(outdir + str(i)):
+                i += 1
+
+            outdir = outdir + str(i)
+            os.makedirs(outdir)
+
+    os.chdir(outdir)
+
+    try:
+        results_file = 'trace.hdf5'
+        inverted_video, results_file = invert_and_trace(video, time=time)
+        # filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
+        filtered_summary = get_filtered_results_by_position(results_file, region)
+        overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
+
+        # session = get_session_from_video_filename(video)
+        # pickle_file = make_vbase_pickle_file(master_pickle, session)
+
+        # get_intervals(filtered_summary, pickle_file)
+
+        #Change back to root directory at end
+        os.chdir(nas_dir)
+
+    except KeyboardInterrupt:
+        print 'Program was closed prematurely'
+
+        if len(os.listdir(outdir)):
+            print "Deleting empty {} directory".format(outdir)
+            os.rmdir(outdir)
+    except:
+        os.chdir(nas_dir)
+        pass
 
 
 
@@ -491,9 +539,8 @@ def hilbert_transform(data):
 if __name__ == "__main__":
     outdir = None
     time = None
-    master_pickle = path.expanduser('~/jason_data/sbvdf.pickle')
-    root_dir = os.getcwd()
-    nas_dir = path.expanduser('~/mnt/jason_nas2_home')
+
+
 
     #Set up parameters
     try:
@@ -512,119 +559,34 @@ if __name__ == "__main__":
             time = arg
 
 
-    video_argument = path.abspath(sys.argv[1])
+
+
+    video_argument = path.abspath(path.expanduser(sys.argv[1]))
+
+    #Video Argument can either be a single video or a directory of videos
+
     if not path.isdir(video_argument):
         video = video_argument
-        #Create the output directory if it doesn't exists or clear it
+
         if not outdir:
             date_string = date.today().isoformat()
             outdir =  path.join(nas_dir, 'traces/' + date_string + '/' +  path.splitext(path.basename(video))[0] + '_trace')
+        
+        region = get_desired_region_from_video(video)
+        run_pipeline(video, outdir, time, region)
 
-        if not path.exists(outdir):
-            os.makedirs(outdir)
-        else:
-
-            delete = raw_input(
-                "Directory '{}' already exists. Do you want to erase its contents (Enter y or n) ".format(outdir)
-            )
-
-            if delete == 'y':
-                map(os.remove, [ path.join(outdir,f) for f in os.listdir(outdir)])
-            else:
-                i = 2
-                while path.exists(outdir + str(i)):
-                    i += 1
-
-                outdir = outdir + str(i)
-                os.makedirs(outdir)
-
-        os.chdir(outdir)
-
-
-        if not time:
-            time = '01:00:00'
-        try:
-            region = get_desired_region_from_video(video)
-            results_file = 'trace.hdf5'
-            inverted_video, results_file = invert_and_trace(video, time=time)
-            filtered_summary = get_filtered_results_by_position(results_file, region)
-            #overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
-
-
-            session = get_session_from_video_filename(video)
-            pickle_file = make_vbase_pickle_file(master_pickle, session)
-
-            get_intervals(filtered_summary, pickle_file)
-
-            #Change back to root directory at end
-            os.chdir(nas_dir)
-
-        except KeyboardInterrupt:
-            print 'Program was closed prematurely'
-
-            if len(os.listdir(outdir)):
-                print "Deleting empty {} directory".format(outdir)
-                os.rmdir(outdir)
     else:
         videos = [path.join(video_argument, fle) for fle in os.listdir(video_argument) if fle.endswith('mp4') or fle.endswith('mkv')]
-        regions = []
+
+
         for idx, video in enumerate(videos):
             print "Preparing to trace {} ({} / {})".format(video, idx + 1, len(videos))
-            region = get_desired_region_from_video(video)
-            regions.append(region)
-
-        for idx, video in enumerate(videos):
             if not outdir:
-		date_string = date.today().isoformat()
+                date_string = date.today().isoformat()
                 outdir =  path.join(nas_dir, 'traces/' + date_string + '/' +  path.splitext(path.basename(video))[0] + '_trace')
-
-            if not path.exists(outdir):
-                os.makedirs(outdir)
-            else:
-
-                # delete = raw_input(
-                #     "Directory '{}' already exists. Do you want to erase its contents (Enter y or n) ".format(outdir)
-                # )
-
-                #Force this for now
-                delete = 'n'
-                if delete == 'y':
-                    map(os.remove, [ path.join(outdir,f) for f in os.listdir(outdir)])
-                else:
-                    i = 2
-                    while path.exists(outdir + str(i)):
-                        i += 1
-
-                    outdir = outdir + str(i)
-                    os.makedirs(outdir)
-
-            os.chdir(outdir)
+            
+            region = get_desired_region_from_video(video)
+            run_pipeline(video, outdir, time, regions)
 
 
-            try:
-                region = regions[idx]
-                results_file = 'trace.hdf5'
-                inverted_video, results_file = invert_and_trace(video, time=time)
-                # filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
-                filtered_summary = get_filtered_results_by_position(results_file, region)
-                #overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
-
-                session = get_session_from_video_filename(video)
-                pickle_file = make_vbase_pickle_file(master_pickle, session)
-
-                get_intervals(filtered_summary, pickle_file)
-
-                #Change back to root directory at end
-                os.chdir(nas_dir)
-
-            except KeyboardInterrupt:
-		# If program is terminated before directory is populated, removed directory
-                print 'Program was closed prematurely'
-
-                if len(os.listdir(outdir)):
-                    print "Deleting empty {} directory".format(outdir)
-                    os.rmdir(outdir)
-            except:
-                os.chdir(nas_dir)
-		continue
 
