@@ -110,6 +110,10 @@ def frame_update(ax, nframe, frame, whisker_handles, contacts_table,
             #~ whisker_handles.append(line)
             #~ line, = ax.plot([row['tip_x']], [row['tip_y']], 'rs')
             #~ whisker_handles.append(line)
+        median_whisker_loc = (np.median(sub_summary.fol_x), np.median(sub_summary.fol_y))
+        median_line_length = sub_summary.pixlen
+        angle = data
+        tip_x = median_whisker_loc * np.cos(deg2rad(angle))
     
     return whisker_handles
 
