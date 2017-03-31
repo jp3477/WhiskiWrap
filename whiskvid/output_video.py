@@ -9,8 +9,14 @@ import numpy as np
 import whiskvid
 import tables
 
+import pandas
+from WhiskiWrap.angle_plotting import get_angle_over_time
+import numpy as np
+from IPython import embed
+
 class OutOfFrames(BaseException):
     pass
+
 
 ## Frame updating function
 def frame_update(ax, nframe, frame, whisker_handles, contacts_table,
@@ -95,7 +101,11 @@ def frame_update(ax, nframe, frame, whisker_handles, contacts_table,
             handle.remove()
         whisker_handles = []            
         
+        
         sub_summary = whiskers_table[whiskers_table[FRAME_LABEL] == nframe]
+        # embed()
+        
+
         for idx, row in sub_summary.iterrows():
             if 'color_group' in row:
                 color = contact_colors[int(row['color_group'])]
@@ -110,10 +120,29 @@ def frame_update(ax, nframe, frame, whisker_handles, contacts_table,
             #~ whisker_handles.append(line)
             #~ line, = ax.plot([row['tip_x']], [row['tip_y']], 'rs')
             #~ whisker_handles.append(line)
-        median_whisker_loc = (np.median(sub_summary.fol_x), np.median(sub_summary.fol_y))
-        median_line_length = sub_summary.pixlen
-        angle = data
-        tip_x = median_whisker_loc * np.cos(deg2rad(angle))
+
+
+        #Try to plot the average whisker angle on video
+        try:
+            sub_summary = get_angle_over_time(sub_summary)
+            x0, y0 = (np.median(sub_summary.fol_x), np.median(sub_summary.fol_y))
+            median_line_length = np.median(sub_summary.pixlen)
+            
+            angle = sub_summary.iloc[0].angle
+            
+            tip_x = x0 + np.cos(np.deg2rad(angle)) * median_line_length
+            tip_y = y0 + np.sin(np.deg2rad(angle)) * median_line_length
+
+            
+            average_line, = ax.plot(
+                [x0, tip_x],
+                [y0, tip_y],
+                color='red',
+                linewidth=2
+            )
+            whisker_handles.append(average_line)
+        except:
+            pass
     
     return whisker_handles
 
