@@ -57,6 +57,7 @@ def make_vbase_pickle_file(master_pickle, session):
     # Find the fit
     b2v_fit = MCwatch.behavior.syncing.longest_unique_fit(v_onsets, backlight_times)
 
+
     ## Put the times in the trial matrix
     tm = pandas.read_csv(trial_matrix_filename)
     tm = ArduFSM.TrialMatrix.add_rwin_and_choice_times_to_trial_matrix(
@@ -65,7 +66,7 @@ def make_vbase_pickle_file(master_pickle, session):
     # Calculate rwin time in vbase
     tm['rwin_time_vbase'] = np.polyval(b2v_fit, tm.rwin_time)
 
-    embed()
+    # embed()
 
 
     # Save the tm
@@ -79,6 +80,6 @@ def get_session_from_video_filename(video_filename):
     session = re.search('-(\d*)', video_filename).group(1)
     return session
 
-#master_pickle = os.path.expanduser('~/jason_data/sbvdf.pickle')
-#session = '20170303122448'
-#make_vbase_pickle_file(master_pickle, session)
+# master_pickle = os.path.expanduser('~/jason_data/sbvdf.pickle')
+# session = '20170303122448'
+# make_vbase_pickle_file(master_pickle, session)

@@ -3,14 +3,14 @@ import numpy.linalg as la
 import matplotlib.pyplot as plt
 import scipy.signal
 import pandas
+import os
+from os import path
 
 
-
-def get_angle_over_time(data, frame_rate=30):
+def get_angle_over_time(data, frame_rate=30.0):
     """
         Plot whisker angles from dataset saved in data
     """
-    data=data[:200]
     angles = []
     times = []
     gb = data.groupby('time')
@@ -51,7 +51,6 @@ def get_angle_over_time(data, frame_rate=30):
 
     # times, angles = data_to_plot[0, :], data_to_plot[1, :]
 
-    pandas.concat(dfs_by_frame)
     data = pandas.concat(dfs_by_frame)
 
     return data
@@ -138,6 +137,8 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
     total_times =  np.array([])
     total_angles = np.array([])
 
+    max_time = 50.0 #Temporarily here to test process
+
     while i < rwin_vbase_times.size and (rwin_vbase_times).iloc[i] < max_time:
 
         print 'Max Time: {}, Current Time: {}'.format(max_time, rwin_vbase_times.iloc[i])
@@ -146,16 +147,22 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
         #Create a interval that will always stay the same length of 5 seconds
         start = int((vbase_time - 2) * frame_rate)
         interval = (start, start + (frame_rate * 5))
-        # print interval
+
+
         chunk = data[(data.time >= interval[0]) & (data.time < interval[1])]
 
-        times, angles = get_angle_over_time(chunk, frame_rate=frame_rate)
 
-        normalized_times = np.rint(((times - times[0]) * frame_rate))
+        angle_data = get_angle_over_time(chunk, frame_rate=frame_rate)
+
+        times, angles = np.array(angle_data.time / frame_rate), np.array(angle_data.angle)
 
 
-        # trials.append(dict(zip(normalized_times, angles)))
-        # trials.append(zip(normalized_times, angles))
+
+        #Convert times back to frames, and subtract start time from all, and round to nearest integer
+        normalized_times = np.rint(((times - min(times)) * frame_rate))
+        #print normalized_times / frame_rate
+
+
 
         total_times = np.concatenate((total_times, normalized_times))
 
@@ -163,27 +170,38 @@ def get_intervals(data, pickle_file, frame_rate=30.0):
         i += 1
 
 
+    #Sort the times
     sortidx = np.argsort(total_times)
     sorted_times = total_times[sortidx]
 
+    #Extract unique times and corresponding angles
+    #See http://stackoverflow.com/questions/31878240/numpy-average-of-values-corresponding-to-unique-coordinate-positions
     unqID_mask = np.append(True, np.diff(sorted_times, axis=0)).astype(bool)
 
     ID = unqID_mask.cumsum() - 1
 
     unique_times = sorted_times[unqID_mask]
+
     average_angles = np.bincount(ID, total_angles[sortidx]) / np.bincount(ID)
 
-    plt.plot(unique_times / frame_rate, average_angles)
-    plt.axvline(x=2, color='r', ls='--')
-    plt.plot()
-    plt.title('Angle behavior')
-    plt.xlabel('Time (s)')
-    plt.ylabel('Angle (degrees)')
-    plt.xlim(0, 5)
-    plt.savefig('angle_plot')
+    #Plot average angles at each unique time point
 
-    print 'Saved angle plot in {}'.format(path.join(os.getcwd(), 'angle_plot'))
-    return unique_times, average_angles
+    fig = plt.figure()
+
+    ax = fig.add_subplot(111)
+    ax.plot(unique_times / frame_rate, average_angles)
+    ax.axvline(x=2, color='r', ls='--')
+
+    ax.set_title('Whisker Angle Near Trial Start')
+    ax.set_xlabel('Time (s)')
+    ax.set_ylabel('Angle (degrees)')
+    ax.set_xlim(0, 5)
+
+
+    fig.savefig('angle_plot_corrected')
+
+    print 'Saved angle plot in {}'.format(path.join(os.getcwd(), 'angle_plot_corrected'))
+    return unique_times /frame_rate, average_angles
 
 
 def hilbert_transform(data):

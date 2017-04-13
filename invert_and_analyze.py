@@ -25,10 +25,17 @@ from pymediainfo import MediaInfo
 from angle_plotting import *
 from make_pickle import make_vbase_pickle_file, get_session_from_video_filename
 
+import logging
+
+#Set up error logger
+logging.basicConfig(filename='/tmp/trace.log', level=logging.DEBUG,
+                            format='%(asctime)s %(levelname)s %(name)s %(message)s')
+
+logger = logging.getLogger(__name__)
+
 root_dir = os.getcwd()
 nas_dir = path.expanduser('~/mnt/jason_nas2_home')
 master_pickle = path.expanduser('~/jason_data/sbvdf.pickle')
-
 
 
 def invert_video(infile, outfile, time=None):
@@ -54,7 +61,7 @@ def invert_video(infile, outfile, time=None):
 
     ff.run()
 
-def invert_and_trace(video, time='00:00:20', results_file='trace.hdf5'):
+def invert_and_trace(video, time=None, results_file='trace.hdf5'):
     """ Inverts a video's colors and then runs a trace
 
         video : input video filename
@@ -89,8 +96,8 @@ def overlay_video_with_results(original_video, inverted_video, whiskers_file, wh
     """
     with tables.open_file(whiskers_file) as handle:
 
-
-        input_reader = FFmpegReader(original_video)
+        #Lowered buffer size, look into standard error output
+        input_reader = FFmpegReader(original_video, bufsize=10**7)
 
         vid_info = MediaInfo.parse(inverted_video).tracks[1]
 
@@ -101,7 +108,7 @@ def overlay_video_with_results(original_video, inverted_video, whiskers_file, wh
 
         frame_count = frame_rate * video_length
 
-        overlayed_video = 'overlayed2.mp4'
+        overlayed_video = 'overlayed.mp4'
 
         print "Overlaying results onto video"
         ov.write_video_with_overlays(
@@ -345,19 +352,23 @@ def run_pipeline(video, outdir, time, region):
             outdir = outdir + str(i)
             os.makedirs(outdir)
 
+
     os.chdir(outdir)
 
     try:
+        #First create symlink to original video to make accessing it easier
+        #os.symlink(video, path.basename(video))
+
         results_file = 'trace.hdf5'
         inverted_video, results_file = invert_and_trace(video, time=time)
         # filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
         filtered_summary = get_filtered_results_by_position(results_file, region)
         overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
 
-        # session = get_session_from_video_filename(video)
-        # pickle_file = make_vbase_pickle_file(master_pickle, session)
+        session = get_session_from_video_filename(video)
+        pickle_file = make_vbase_pickle_file(master_pickle, session)
 
-        # get_intervals(filtered_summary, pickle_file)
+        get_intervals(filtered_summary, pickle_file)
 
         #Change back to root directory at end
         os.chdir(nas_dir)
@@ -368,7 +379,8 @@ def run_pipeline(video, outdir, time, region):
         if len(os.listdir(outdir)):
             print "Deleting empty {} directory".format(outdir)
             os.rmdir(outdir)
-    except:
+    except Exception as e:
+        logger.error(e)
         os.chdir(nas_dir)
         pass
 
@@ -376,8 +388,8 @@ def run_pipeline(video, outdir, time, region):
 
 
 if __name__ == "__main__":
-    outdir = None
     time = None
+    mouse = None
 
 
 
@@ -385,7 +397,7 @@ if __name__ == "__main__":
     try:
         opts, args = getopt.getopt(
             sys.argv[2:],
-            'o:t:'
+            'o:t:m:'
         )
     except getopt.GetoptError:
         print 'invert_and_analyze.py <video_name | video_direct_name> -o <output_directory> -t <time_interval> '
@@ -396,6 +408,8 @@ if __name__ == "__main__":
             outdir = arg
         elif opt == '-t':
             time = arg
+        elif opt == '-m':
+            mouse = arg
 
 
 
@@ -407,25 +421,38 @@ if __name__ == "__main__":
     if not path.isdir(video_argument):
         video = video_argument
 
+        # If optional outdir command line argument is not given
         if not outdir:
-            date_string = date.today().isoformat()
-            outdir =  path.join(nas_dir, 'traces/' + date_string + '/' +  path.splitext(path.basename(video))[0] + '_trace')
-        
+            if mouse:
+                mouse = mouse.lower()
+                outdir = path.join(nas_dir, 'traces/' + mouse + '/' + path.splitext(path.basename(video))[0] + '_trace')
+            else:
+                date_string = date.today().isoformat()
+                outdir =  path.join(nas_dir, 'traces/' + date_string + '/' +  path.splitext(path.basename(video))[0] + '_trace')
+
         region = get_desired_region_from_video(video)
         run_pipeline(video, outdir, time, region)
 
     else:
-        videos = [path.join(video_argument, fle) for fle in os.listdir(video_argument) if fle.endswith('mp4') or fle.endswith('mkv')]
+        videos = [path.expanduser(path.join(video_argument, fle)) for fle in os.listdir(video_argument) if fle.endswith('mp4') or fle.endswith('mkv')]
+        regions = []
 
+        for idx, video in enumerate(videos):
+            regions.append(get_desired_region_from_video(video))
 
         for idx, video in enumerate(videos):
             print "Preparing to trace {} ({} / {})".format(video, idx + 1, len(videos))
-            if not outdir:
+            if mouse:
+                mouse = mouse.lower()
+                outdir = path.join(nas_dir, 'traces/' + mouse + '/' + path.splitext(path.basename(video))[0] + '_trace')
+            else:
                 date_string = date.today().isoformat()
                 outdir =  path.join(nas_dir, 'traces/' + date_string + '/' +  path.splitext(path.basename(video))[0] + '_trace')
-            
-            region = get_desired_region_from_video(video)
-            run_pipeline(video, outdir, time, regions)
+
+            run_pipeline(video, outdir, time, regions[idx])
+
+
+    print "Error logs stored in /tmp/trace.log"
 
 
 
