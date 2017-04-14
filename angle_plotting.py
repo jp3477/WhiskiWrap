@@ -2,15 +2,16 @@ import numpy as np
 import numpy.linalg as la
 import matplotlib.pyplot as plt
 import scipy.signal
+from scipy.signal import butter, lfilter, filtfilt
 import pandas
 import os
 from os import path
 
 
 def find_angle(group):
-    group = group.apply(             
+    group = group.apply(
         lambda x:
-            angle_between((x.tip_x - x.fol_x,  x.tip_y - x.fol_y), (1,0) ), 
+            angle_between((x.tip_x - x.fol_x,  x.tip_y - x.fol_y), (1,0) ),
         axis = 1
     ).mean()
 
@@ -165,9 +166,33 @@ def get_intervals(data, pickle_file, outfile=None, frame_rate=30.0):
         trial_angles.to_pickle('trial_angles')
         print 'Saved angle data in {}'.format(path.join(os.getcwd(), 'trial_angles'))
 
-    
+
     print 'Saved angle plot in {}'.format(path.join(os.getcwd(), 'angle_plot'))
     return unique_times, average_angles
+
+def butter_lowpass(cutoff, fs, order=5):
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff / nyq
+    b,a = butter(order, normal_cutoff, btype='low', analog=False)
+    return b,a
+
+def butter_lowpass_filter(data, cutoff, fs, order=5):
+    b,a = butter_lowpass(cutoff, fs, order=order)
+    y = filtfilt(b, a, data)
+    return y
+
+def smooth_trial_angle(dataframe, cutoff, fs):
+    time = dataframe.time
+    angles = dataframe.average_angle
+    filtered = butter_lowpass_filter(angles, cutoff, fs)
+
+    plt.plot(time, angles, 'b-', label='data')
+    plt.plot(time, filtered, 'g-', linewidth=4, label='filtered data')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Mean angle (degrees)')
+    plt.grid()
+    plt.legend()
+    plt.show()
 
 
 def hilbert_transform(data):

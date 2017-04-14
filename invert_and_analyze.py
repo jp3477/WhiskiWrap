@@ -361,14 +361,18 @@ def run_pipeline(video, outdir, time, region):
 
         results_file = 'trace.hdf5'
         inverted_video, results_file = invert_and_trace(video, time=time)
-        # filtered_summary = get_filtered_results_from_tiff_files('trace.hdf5')
-        filtered_summary = get_filtered_results_by_position(results_file, region)
-        overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
 
+        #Filter traced data
+        filtered_summary = get_filtered_results_by_position(results_file, region)
+        
+        #Get plots 
         session = get_session_from_video_filename(video)
         pickle_file = make_vbase_pickle_file(master_pickle, session)
-
         get_intervals(filtered_summary, pickle_file, outfile='angle_interval_data')
+
+
+        #Make new video with overlayed traces
+        overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
 
         #Change back to root directory at end
         os.chdir(nas_dir)
