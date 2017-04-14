@@ -368,7 +368,7 @@ def run_pipeline(video, outdir, time, region):
         session = get_session_from_video_filename(video)
         pickle_file = make_vbase_pickle_file(master_pickle, session)
 
-        get_intervals(filtered_summary, pickle_file)
+        get_intervals(filtered_summary, pickle_file, outfile='angle_interval_data')
 
         #Change back to root directory at end
         os.chdir(nas_dir)
