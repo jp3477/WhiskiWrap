@@ -97,7 +97,7 @@ def overlay_video_with_results(original_video, inverted_video, whiskers_file, wh
     with tables.open_file(whiskers_file) as handle:
 
         #Lowered buffer size, look into standard error output
-        input_reader = FFmpegReader(original_video, bufsize=10**7)
+        input_reader = FFmpegReader(original_video, bufsize=10**6)
 
         vid_info = MediaInfo.parse(inverted_video).tracks[1]
 
@@ -364,15 +364,15 @@ def run_pipeline(video, outdir, time, region):
 
         #Filter traced data
         filtered_summary = get_filtered_results_by_position(results_file, region)
-        
-        #Get plots 
+
+        #Get plots
         session = get_session_from_video_filename(video)
         pickle_file = make_vbase_pickle_file(master_pickle, session)
-        get_intervals(filtered_summary, pickle_file, outfile='angle_interval_data')
-
+        angles_by_frame = get_angle_over_time(filtered_summary, outfile='all_angles.pickle', frame_rate=30.0)
+        get_hit_and_error_angles_on_trial_intervals(angles_by_frame, pickle_file, save_data=True, save_figure=True, frame_rate=30.0)
 
         #Make new video with overlayed traces
-        overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
+        # overlay_video_with_results(video, inverted_video, 'trace.hdf5', filtered_summary)
 
         #Change back to root directory at end
         os.chdir(nas_dir)
