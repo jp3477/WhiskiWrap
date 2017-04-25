@@ -31,42 +31,6 @@ def get_angle_over_time(data, outfile=None, frame_rate=30.0):
 
     return angles
 
-def plot_angle_over_time(data, savefile=None, frame_rate=30.):
-    """
-        Plot whisker angles from dataset saved in data
-    """
-    angles = []
-    times = []
-    gb = data.groupby('time')
-
-    dfs_by_second = [gb.get_group(x) for x in gb.groups]
-
-    for df in dfs_by_second:
-        average_angle = df.apply(
-            lambda x:
-                angle_between((x.tip_x - x.fol_x,  x.tip_y - x.fol_y), (1,0) ),
-            axis = 1
-        ).mean()
-
-        time_point = (df.iloc[0]["time"] * frame_rate) / 1000
-
-        times.append(time_point)
-        angles.append(average_angle)
-
-    mean = np.mean(angles)
-
-    plt.plot(times,angles)
-    plt.plot(times, np.ones(len(times)) * mean, 'r')
-    plt.title('Angle behavior')
-    plt.xlabel('Time (s)')
-    plt.ylabel('Angle (degrees)')
-
-    if savefile:
-        plt.savefig(savefile)
-    else:
-        plt.show()
-
-
 
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """
@@ -168,9 +132,13 @@ def get_hit_and_error_angles_on_trial_intervals(angles_by_frame, pickle_file, sa
     hit_vbase_times = random_vbase_times[trials['outcome'] == 'hit']
     error_vbase_times = random_vbase_times[trials['outcome'] == 'error']
 
+    hit_pcnt = round(len(hit_vbase_times) / float(len(hit_vbase_times) + len(error_vbase_times)), 2)
+    error_pcnt = 1 - hit_pcnt 
+
     #max_time = data.iloc[-1].time / frame_rate
     max_time = max(angles_by_frame.time) / frame_rate
 
+    hits_savefile, errors_savefile = None, None
     if save_data:
         hits_savefile = 'hit_angles.pickle'
         errors_savefile = 'error_angles.pickle'
@@ -195,8 +163,11 @@ def get_hit_and_error_angles_on_trial_intervals(angles_by_frame, pickle_file, sa
 
     ax = fig.add_subplot(111)
 
-    ax.plot(hit_times, hit_angles, 'b-', label='hits')
-    ax.plot(error_times, error_angles, 'r-', label='errors')
+    hit_label = 'hits ({}%)'.format(hit_pcnt * 100)
+    error_label = 'errors ({}%)'.format(error_pcnt * 100)
+
+    ax.plot(hit_times, hit_angles, 'b-', label=hit_label)
+    ax.plot(error_times, error_angles, 'r-', label=error_label)
 
     ax.plot(hit_times, hit_angles_smoothed, 'b-', linewidth=4, label='smoothed hits')
     ax.plot(error_times, error_angles_smoothed,'r-', linewidth=4, label='smoothed errors')
@@ -208,9 +179,10 @@ def get_hit_and_error_angles_on_trial_intervals(angles_by_frame, pickle_file, sa
     ax.set_xlim(0, 5)
     ax.legend(loc='lower right')
 
+    angle_savefile = 'angle_plot'
     if save_figure:
-        fig.savefig('angle_plot')
-        print 'Saved angle plot in {}'.format(path.join(os.getcwd(), 'angle_plot'))
+        fig.savefig(angle_savefile)
+        print 'Saved angle plot in {}'.format(path.join(os.getcwd(), angle_savefile))
 
 
 
