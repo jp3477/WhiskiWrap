@@ -7,6 +7,11 @@ import pandas
 import os
 from os import path
 
+from db_connect import Mouse, Session
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+
 
 def find_angle(group):
     group = group.apply(
@@ -185,7 +190,6 @@ def get_hit_and_error_angles_on_trial_intervals(angles_by_frame, pickle_file, sa
         print 'Saved angle plot in {}'.format(path.join(os.getcwd(), angle_savefile))
 
 
-
 def butter_lowpass(cutoff, fs, order=5):
     nyq = 0.5 * fs
     normal_cutoff = cutoff / nyq
@@ -213,3 +217,16 @@ def smooth_trial_angle(dataframe, cutoff, fs):
 
 def hilbert_transform(data):
     analytic_signal = scipy.signal.hilbert(data)
+
+
+def plot_sessions_by_mouse(mouse_name):
+    engine = create_engine('postgresql://jason:password@localhost/trace_db', echo=True)
+    Sess = sessionmaker(bind=engine)
+    session = Sess()
+
+    mouse = session.query(Mouse).filter(Mouse.name == mouse_name).first()
+
+    sessions = mouse.sessions
+
+    print sessions
+
