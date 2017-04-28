@@ -70,7 +70,7 @@ def write_chunk(chunk, chunkname, directory='.'):
 
 
 
-def trace_chunk(video_filename, delete_when_done=False):
+def trace_chunk(video_filename, delete_when_done=True):
     """Run trace on an input file
     
     First we create a whiskers filename from `video_filename`, which is

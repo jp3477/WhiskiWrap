@@ -1,6 +1,3 @@
-from sqlalchemy import create_engine
-engine = create_engine('postgresql://jason:password@localhost/trace_db', echo=True)
-
 from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 

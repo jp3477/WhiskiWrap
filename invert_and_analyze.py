@@ -78,7 +78,8 @@ def invert_and_trace(video, time=None, results_file='trace.hdf5'):
     WhiskiWrap.pipeline_trace(
         inverted_video,
         results_file,
-        n_trace_processes=4
+        n_trace_processes=10,
+        chunk_sz_frames=1000
     )
 
     return inverted_video, results_file
